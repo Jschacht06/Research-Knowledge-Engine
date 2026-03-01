@@ -1,0 +1,43 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: kb
+      POSTGRES_PASSWORD: kb
+      POSTGRES_DB: kb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://kb:kb@db:5432/kb
+      JWT_SECRET: "change_me_in_prod"
+      STORAGE_DIR: "/data/files"
+
+      # Chat/Embeddings: local Ollama
+      LLM_PROVIDER: "ollama"
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      OLLAMA_CHAT_MODEL: "llama3.1:8b"
+      OLLAMA_EMBED_MODEL: "nomic-embed-text"
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - files_data:/data/files
+
+  frontend:
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_API_BASE: "http://localhost:8000"
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:
+  files_data:
