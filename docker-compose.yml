@@ -9,6 +9,19 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   backend:
     build: ./backend
@@ -19,7 +32,7 @@ services:
 
       # Chat/Embeddings: local Ollama
       LLM_PROVIDER: "ollama"
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      OLLAMA_BASE_URL: "http://ollama:11434"
       OLLAMA_CHAT_MODEL: "llama3.1:8b"
       OLLAMA_EMBED_MODEL: "nomic-embed-text"
     depends_on:
@@ -50,3 +63,4 @@ services:
 volumes:
   db_data:
   files_data:
+  ollama_data:

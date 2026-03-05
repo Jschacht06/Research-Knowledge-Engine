@@ -40,9 +40,9 @@ async def chat_answer(question: str, context_blocks: list[dict]) -> str:
     )
 
     system = (
-        "Tu es un assistant pour une base de connaissances de recherche. "
-        "Réponds en français. Utilise uniquement les sources fournies. "
-        "Si tu ne sais pas, dis-le. Termine par une section 'Sources' listant doc_id/chunk_id."
+        "You are an assistant for a research knowledge base. "
+        "Answer in English. Use only the provided sources. "
+        "If you do not know the answer, say so. End with a 'Sources' section listing the doc_id/chunk_id."
     )
 
     prompt = f"{system}\n\nSOURCES:\n{context_text}\n\nQUESTION:\n{question}\n\nREPONSE:"

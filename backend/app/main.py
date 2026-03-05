@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
@@ -60,7 +61,7 @@ class TokenOut(BaseModel):
 class DocumentOut(BaseModel):
     id: int
     filename: str
-    created_at: str
+    created_at: datetime
     class Config:
         from_attributes = True
 
