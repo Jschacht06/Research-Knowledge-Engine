@@ -19,4 +19,4 @@ class Settings(BaseSettings):
         env_prefix = ""
         extra = "ignore"
 
-settings = Settings()  # lit les variables d'environnement
+settings = Settings()  # read environment variables and create an instance of the Settings class to use later on
