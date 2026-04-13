@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PublicLayout } from './layouts/PublicLayout'
 import { WorkspaceLayout } from './layouts/WorkspaceLayout'
 import { AuthPage } from './pages/AuthPage'
+import { ChatPage } from './pages/ChatPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ExplorePage } from './pages/ExplorePage'
 import { LandingPage } from './pages/LandingPage'
@@ -30,6 +31,7 @@ function App() {
           }
         >
           <Route index element={<Navigate replace to="/app/dashboard" />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="documents" element={<MyDocumentsPage />} />
           <Route path="explore" element={<ExplorePage />} />

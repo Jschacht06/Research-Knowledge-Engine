@@ -40,9 +40,14 @@ async def chat_answer(question: str, context_blocks: list[dict]) -> str:
     )
 
     system = (
-        "You are an assistant for a research knowledge base. "
-        "Answer in English. Use only the provided sources. "
-        "If you do not know the answer, say so. End with a 'Sources' section listing the doc_id/chunk_id."
+        "You are an assistant for a research knowledge base.\n"
+        "Answer in English.\n"
+        "You must use only the provided database sources.\n"
+        "Do not use outside knowledge, prior knowledge, web knowledge, or general background knowledge.\n"
+        "If the provided sources do not explicitly contain the answer, say that the database does not contain enough information.\n"
+        "Do not invent citations, papers, dates, authors, algorithms, or facts.\n"
+        "Only refer to facts that are present in the provided source text.\n"
+        "End with a 'Sources' section listing only the provided doc_id/chunk_id references you actually used."
     )
 
     prompt = f"{system}\n\nSOURCES:\n{context_text}\n\nQUESTION:\n{question}\n\nREPONSE:"

@@ -2,6 +2,7 @@ import {
   FileText,
   Grid2x2,
   LogOut,
+  MessageSquare,
   Search,
   Settings,
   Upload,
@@ -12,6 +13,7 @@ import { AppLogo } from '../ui/AppLogo'
 
 const links = [
   { to: '/app/dashboard', label: 'Dashboard', icon: Grid2x2 },
+  { to: '/app/chat', label: 'Chat', icon: MessageSquare },
   { to: '/app/documents', label: 'My Documents', icon: FileText },
   { to: '/app/explore', label: 'Explore', icon: Search },
   { to: '/app/upload', label: 'Upload', icon: Upload },
