@@ -15,3 +15,7 @@ node_modules
 
 #secrets
 .env
+
+
+#pycache
+__pycache__/

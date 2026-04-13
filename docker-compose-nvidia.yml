@@ -1,0 +1,67 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: kb
+      POSTGRES_PASSWORD: kb
+      POSTGRES_DB: kb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://kb:kb@db:5432/kb
+      JWT_SECRET: "change_me_in_prod"
+      STORAGE_DIR: "/data/files"
+      FRONTEND_ORIGINS: "http://localhost:5173,http://frontend:5173"
+
+      # Chat/Embeddings: local Ollama
+      LLM_PROVIDER: "ollama"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      OLLAMA_CHAT_MODEL: "llama3.1:8b"
+      OLLAMA_EMBED_MODEL: "nomic-embed-text"
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - files_data:/data/files
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_BASE_URL: "http://localhost:8000"
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin"
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
+  files_data:
+  ollama_data:

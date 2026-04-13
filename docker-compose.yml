@@ -15,13 +15,6 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
   backend:
     build: ./backend
@@ -29,6 +22,7 @@ services:
       DATABASE_URL: postgresql+psycopg://kb:kb@db:5432/kb
       JWT_SECRET: "change_me_in_prod"
       STORAGE_DIR: "/data/files"
+      FRONTEND_ORIGINS: "http://localhost:5173,http://frontend:5173"
 
       # Chat/Embeddings: local Ollama
       LLM_PROVIDER: "ollama"
@@ -45,11 +39,11 @@ services:
   frontend:
     build: ./frontend
     environment:
-      NEXT_PUBLIC_API_BASE: "http://localhost:8000"
+      VITE_API_BASE_URL: "http://localhost:8000"
     depends_on:
       - backend
     ports:
-      - "3000:3000"
+      - "5173:5173"
   pgadmin:
     image: dpage/pgadmin4
     environment:

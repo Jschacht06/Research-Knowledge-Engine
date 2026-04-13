@@ -1,6 +1,9 @@
 import type { FormEvent } from 'react'
 import { FileText } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
+import { ApiError, getApiBaseUrl } from '../lib/api'
 
 type AuthPageProps = {
   mode: 'login' | 'register'
@@ -9,13 +12,53 @@ type AuthPageProps = {
 export function AuthPage({ mode }: AuthPageProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { isAuthenticated, login, register } = useAuth()
   const from = (location.state as { from?: string } | null)?.from ?? '/app/dashboard'
   const isLogin = mode === 'login'
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true })
+    }
+  }, [from, isAuthenticated, navigate])
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    window.localStorage.setItem('rke-authenticated', 'true')
-    navigate(from, { replace: true })
+    setErrorMessage(null)
+    setIsSubmitting(true)
+
+    try {
+      if (!email.trim() || !password.trim()) {
+        setErrorMessage('Email and password are required.')
+        return
+      }
+
+      if (!isLogin && !fullName.trim()) {
+        setErrorMessage('Full name is required.')
+        return
+      }
+
+      if (isLogin) {
+        await login({ email, password })
+      } else {
+        await register({ email, password })
+      }
+
+      navigate(from, { replace: true })
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message)
+      } else {
+        setErrorMessage('Something went wrong while contacting the API.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -46,8 +89,10 @@ export function AuthPage({ mode }: AuthPageProps) {
               <input
                 className="h-11 w-full rounded-2xl border border-[#dfe6ef] px-4 text-base text-rke-navy outline-none transition placeholder:text-slate-400 focus:border-rke-teal"
                 id="fullName"
+                onChange={(event) => setFullName(event.target.value)}
                 placeholder="Enter your name"
                 type="text"
+                value={fullName}
               />
             </div>
           )}
@@ -62,8 +107,10 @@ export function AuthPage({ mode }: AuthPageProps) {
             <input
               className="h-11 w-full rounded-2xl border border-[#dfe6ef] px-4 text-base text-rke-navy outline-none transition placeholder:text-slate-400 focus:border-rke-teal"
               id="email"
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="Enter your email"
               type="email"
+              value={email}
             />
           </div>
 
@@ -77,8 +124,10 @@ export function AuthPage({ mode }: AuthPageProps) {
             <input
               className="h-11 w-full rounded-2xl border border-[#dfe6ef] px-4 text-base text-rke-navy outline-none transition placeholder:text-slate-400 focus:border-rke-teal"
               id="password"
+              onChange={(event) => setPassword(event.target.value)}
               placeholder={isLogin ? 'Enter your password' : 'Create a password'}
               type="password"
+              value={password}
             />
           </div>
 
@@ -93,12 +142,19 @@ export function AuthPage({ mode }: AuthPageProps) {
           </div>
 
           <button
-            className="mt-5 h-12 w-full rounded-2xl bg-rke-amber text-base font-bold text-white shadow-[0_10px_24px_rgba(245,162,6,0.28)] transition hover:brightness-105"
+            className="mt-5 h-12 w-full rounded-2xl bg-rke-amber text-base font-bold text-white shadow-[0_10px_24px_rgba(245,162,6,0.28)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isSubmitting}
             type="submit"
           >
-            {isLogin ? 'Log In' : 'Sign Up'}
+            {isSubmitting ? 'Please wait...' : isLogin ? 'Log In' : 'Sign Up'}
           </button>
         </form>
+
+        {errorMessage && (
+          <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {errorMessage}
+          </p>
+        )}
 
         <div className="mt-8 flex items-center gap-4">
           <div className="h-px flex-1 bg-[#dfe6ef]" />
@@ -111,6 +167,10 @@ export function AuthPage({ mode }: AuthPageProps) {
           <Link className="font-bold text-rke-teal transition hover:text-rke-navy" to={isLogin ? '/register' : '/login'}>
             {isLogin ? 'Sign Up' : 'Log In'}
           </Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-slate-400">
+          API base: {getApiBaseUrl()}
         </p>
       </div>
     </div>
