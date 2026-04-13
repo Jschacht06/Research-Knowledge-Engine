@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import { Bot, CornerDownLeft, LoaderCircle, Sparkles, User2 } from 'lucide-react'
 import { startTransition, useState } from 'react'
 import { apiRequest, ApiError } from '../lib/api'
@@ -21,12 +21,6 @@ type ChatMessage = {
   content: string
   sources?: ChatSource[]
 }
-
-const starterPrompts = [
-  'Summarize the newest robotics research in my library.',
-  'Which uploaded documents mention sensor fusion or real-time systems?',
-  'Give me a quick overview of my AI / Machine Learning proposals.',
-]
 
 export function ChatPage() {
   const { token } = useAuth()
@@ -104,6 +98,13 @@ export function ChatPage() {
     void sendMessage(draft)
   }
 
+  function handleDraftKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      void sendMessage(draft)
+    }
+  }
+
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <section className="min-h-[calc(100svh-10rem)] rounded-[32px] border border-rke-border/80 bg-white shadow-[0_24px_70px_rgba(24,46,75,0.08)]">
@@ -121,10 +122,6 @@ export function ChatPage() {
               </h1>
             </div>
           </div>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-rke-copy">
-            This page uses the existing backend RAG endpoint, so answers are generated from
-            the documents already associated with your account.
-          </p>
         </div>
 
         <div className="flex h-[calc(100%-8.5rem)] flex-col">
@@ -198,6 +195,7 @@ export function ChatPage() {
                 <textarea
                   className="min-h-28 w-full resize-none rounded-[26px] border border-rke-border bg-rke-surface/50 px-5 py-4 text-sm leading-7 text-rke-navy outline-none transition focus:border-rke-teal"
                   onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={handleDraftKeyDown}
                   placeholder="Ask something about your uploaded research..."
                   value={draft}
                 />
@@ -222,24 +220,6 @@ export function ChatPage() {
       </section>
 
       <aside className="space-y-6">
-        <section className="rounded-[30px] border border-rke-border/80 bg-white p-6 shadow-[0_24px_70px_rgba(24,46,75,0.08)]">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-rke-teal">
-            Quick prompts
-          </p>
-          <div className="mt-4 grid gap-3">
-            {starterPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                className="rounded-2xl border border-rke-border/70 bg-rke-surface/50 px-4 py-4 text-left text-sm leading-6 text-rke-copy transition hover:border-rke-teal/30 hover:bg-rke-teal-soft/40 hover:text-rke-navy"
-                onClick={() => void sendMessage(prompt)}
-                type="button"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </section>
-
         <section className="rounded-[30px] border border-rke-border/80 bg-white p-6 shadow-[0_24px_70px_rgba(24,46,75,0.08)]">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-rke-teal">
             How it works
