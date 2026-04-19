@@ -1,14 +1,17 @@
 import { Calendar, Grid2x2, List, ListFilter } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { DocumentCard } from '../components/ui/DocumentCard'
 import { EmptyState } from '../components/ui/EmptyState'
 import { SectionHeading } from '../components/ui/SectionHeading'
 import { type SortOrder, topicOptions, type TopicName } from '../data/documents'
 import { useDocuments } from '../hooks/useDocuments'
-import { filterDocuments } from '../utils/documents'
+import { filterDocuments, searchDocuments } from '../utils/documents'
 
 export function ExplorePage() {
   const { documents, errorMessage, isLoading } = useDocuments()
+  const [searchParams] = useSearchParams()
+  const searchQuery = searchParams.get('q')?.trim() ?? ''
   const [selectedTopics, setSelectedTopics] = useState<TopicName[]>([])
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -16,15 +19,17 @@ export function ExplorePage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('Newest')
 
   const filteredDocuments = useMemo(
-    () =>
-      filterDocuments(documents, {
+    () => {
+      const scopedDocuments = searchDocuments(documents, searchQuery)
+      return filterDocuments(scopedDocuments, {
         selectedTopics,
         fromDate,
         toDate,
         authorQuery,
         sortOrder,
-      }),
-    [authorQuery, documents, fromDate, selectedTopics, sortOrder, toDate],
+      })
+    },
+    [authorQuery, documents, fromDate, searchQuery, selectedTopics, sortOrder, toDate],
   )
 
   function toggleTopic(topic: TopicName) {
@@ -128,6 +133,11 @@ export function ExplorePage() {
 
       <section className="space-y-6">
         <SectionHeading
+          description={
+            searchQuery
+              ? `Showing results for "${searchQuery}" across titles, authors, topics, and keywords.`
+              : undefined
+          }
           eyebrow="Explore"
           title="Browse shared research"
         />
@@ -186,7 +196,11 @@ export function ExplorePage() {
           </div>
         ) : (
           <EmptyState
-            description="Try clearing one or more filters, or upload more research proposals to expand the knowledge base."
+            description={
+              searchQuery
+                ? 'Try a broader search or clear some filters to widen the results.'
+                : 'Try clearing one or more filters, or upload more research proposals to expand the knowledge base.'
+            }
             title="No documents match the selected filters"
           />
         )}

@@ -1,14 +1,17 @@
-import { Bell, ChevronDown, LogOut, Search } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 export function WorkspaceSearchBar() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { logout, user } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const initials = (user?.email?.charAt(0) ?? 'U').toUpperCase()
+  const query = searchParams.get('q') ?? ''
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -38,17 +41,72 @@ export function WorkspaceSearchBar() {
     navigate('/', { replace: true })
   }
 
+  function navigateWithQuery(nextQuery: string) {
+    const normalizedQuery = nextQuery.trim()
+    const nextParams = new URLSearchParams(searchParams)
+
+    if (normalizedQuery) {
+      nextParams.set('q', normalizedQuery)
+    } else {
+      nextParams.delete('q')
+    }
+
+    const targetPath =
+      location.pathname.startsWith('/app/dashboard') ||
+      location.pathname.startsWith('/app/documents') ||
+      location.pathname.startsWith('/app/explore')
+        ? location.pathname
+        : '/app/explore'
+
+    const nextSearch = nextParams.toString()
+    navigate(
+      {
+        pathname: targetPath,
+        search: nextSearch ? `?${nextSearch}` : '',
+      },
+      { replace: targetPath === location.pathname },
+    )
+  }
+
+  function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    navigateWithQuery(query)
+  }
+
+  function handleSearchChange(nextQuery: string) {
+    navigateWithQuery(nextQuery)
+  }
+
+  function handleClearSearch() {
+    navigateWithQuery('')
+  }
+
   return (
     <header className="sticky top-0 z-20 border-b border-rke-border/80 bg-white/85 backdrop-blur-xl">
       <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-8">
-        <label className="flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-rke-border bg-rke-surface/70 px-4 py-3 text-rke-copy">
+        <form
+          className="flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-rke-border bg-rke-surface/70 px-4 py-3 text-rke-copy"
+          onSubmit={handleSearchSubmit}
+        >
           <Search size={18} />
           <input
             className="w-full border-none bg-transparent text-sm text-rke-navy outline-none placeholder:text-slate-400"
+            onChange={(event) => handleSearchChange(event.target.value)}
             placeholder="Search documents, authors, topics..."
-            type="search"
+            type="text"
+            value={query}
           />
-        </label>
+          {query && (
+            <button
+              aria-label="Clear search"
+              className="grid size-8 place-items-center rounded-full text-rke-copy transition hover:bg-white hover:text-rke-navy"
+              onClick={handleClearSearch}
+              type="button"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </form>
 
         <div className="flex items-center gap-4">
           <button
