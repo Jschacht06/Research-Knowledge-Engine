@@ -2,7 +2,10 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+import json
+
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -38,6 +41,12 @@ def on_startup():
     with engine.begin() as conn:
         conn.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS title VARCHAR(255)"))
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topic VARCHAR(120)"))
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS abstract TEXT"))
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS authors JSONB DEFAULT '[]'::jsonb"))
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS keywords JSONB DEFAULT '[]'::jsonb"))
     Path(settings.storage_dir).mkdir(parents=True, exist_ok=True)
 
 
@@ -60,7 +69,12 @@ class TokenOut(BaseModel):
 
 class DocumentOut(BaseModel):
     id: int
+    title: str
     filename: str
+    topic: str | None = None
+    abstract: str | None = None
+    authors: list[str]
+    keywords: list[str]
     created_at: datetime
     class Config:
         from_attributes = True
@@ -74,6 +88,14 @@ class ChatIn(BaseModel):
 class ChatOut(BaseModel):
     answer: str
     sources: list[dict]
+
+
+def serialize_document(document: Document) -> Document:
+    if not document.title:
+        document.title = document.filename
+    document.authors = document.authors or []
+    document.keywords = document.keywords or []
+    return document
 
 
 @app.get("/health")
@@ -121,14 +143,29 @@ def me(current_user: User = Depends(get_current_user)):
 @app.post("/documents/upload", response_model=DocumentOut)
 async def upload_document(
     file: UploadFile = File(...),
+    title: str = Form(...),
+    topic: str = Form(""),
+    abstract: str = Form(""),
+    authors: str = Form("[]"),
+    keywords: str = Form("[]"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     filename = file.filename or "file"
+    cleaned_title = title.strip()
+    if not cleaned_title:
+        raise HTTPException(status_code=400, detail="Document title is required")
+
     ext = filename.lower().split(".")[-1]
     allowed = {"pdf", "docx", "pptx"}
     if ext not in allowed:
         raise HTTPException(status_code=400, detail="Only PDF, DOCX, PPTX are allowed")
+
+    try:
+        parsed_authors = [item.strip() for item in json.loads(authors) if str(item).strip()]
+        parsed_keywords = [item.strip() for item in json.loads(keywords) if str(item).strip()]
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Authors and keywords must be valid JSON arrays") from exc
 
     doc_uuid = str(uuid.uuid4())
     safe_name = f"{doc_uuid}_{Path(filename).name}"
@@ -139,6 +176,11 @@ async def upload_document(
 
     doc = Document(
         filename=Path(filename).name,
+        title=cleaned_title,
+        topic=topic.strip() or None,
+        abstract=abstract.strip() or None,
+        authors=parsed_authors,
+        keywords=parsed_keywords,
         filepath=str(storage_path),
         owner_id=current_user.id,
     )
@@ -161,12 +203,58 @@ async def upload_document(
 
 @app.get("/documents", response_model=list[DocumentOut])
 def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return (
+    documents = (
         db.query(Document)
         .filter(Document.owner_id == current_user.id)
         .order_by(Document.id.desc())
         .all()
     )
+    return [serialize_document(document) for document in documents]
+
+
+@app.get("/documents/{document_id}", response_model=DocumentOut)
+def get_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.owner_id == current_user.id)
+        .first()
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return serialize_document(document)
+
+
+@app.get("/documents/{document_id}/file")
+def get_document_file(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.owner_id == current_user.id)
+        .first()
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    path = Path(document.filepath)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Stored file not found")
+
+    suffix = path.suffix.lower()
+    media_type = {
+        ".pdf": "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    }.get(suffix, "application/octet-stream")
+
+    return FileResponse(path, media_type=media_type, filename=document.filename)
 
 
 # -------- CHAT --------

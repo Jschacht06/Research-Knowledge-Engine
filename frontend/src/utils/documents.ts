@@ -28,16 +28,37 @@ export function parseDateInput(value: string): Date | null {
 }
 
 export function toTimestamp(dateISO: string): number {
-  return new Date(`${dateISO}T00:00:00`).getTime()
+  return new Date(dateISO).getTime()
 }
 
-export function authorInitial(author: string): string {
-  const parts = author.split(' ').filter(Boolean)
-  const lastName = parts[parts.length - 1] ?? author
+export function authorInitial(authors: string[]): string {
+  const primaryAuthor = authors[0] ?? 'Unknown'
+  const parts = primaryAuthor.split(' ').filter(Boolean)
+  const lastName = parts[parts.length - 1] ?? primaryAuthor
   return lastName.charAt(0).toUpperCase()
 }
 
-export function topicAccent(topic: TopicName) {
+export function formatAuthorList(authors: string[]) {
+  if (authors.length === 0) {
+    return 'Unknown author'
+  }
+
+  if (authors.length === 1) {
+    return authors[0]
+  }
+
+  return `${authors[0]} +${authors.length - 1} more`
+}
+
+export function formatDocumentDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value))
+}
+
+export function topicAccent(topic: string | null) {
   const accents: Record<TopicName, string> = {
     Robotics: 'bg-rke-violet/15 text-rke-violet ring-rke-violet/20',
     'AI / Machine Learning': 'bg-rke-teal-soft text-rke-teal ring-rke-teal/20',
@@ -47,7 +68,32 @@ export function topicAccent(topic: TopicName) {
     'Control Systems': 'bg-sky-100 text-sky-700 ring-sky-200',
   }
 
-  return accents[topic]
+  if (!topic || !(topic in accents)) {
+    return 'bg-slate-100 text-slate-700 ring-slate-200'
+  }
+
+  return accents[topic as TopicName]
+}
+
+export function matchesSearchQuery(document: DocumentRecord, rawQuery: string) {
+  const query = rawQuery.trim().toLowerCase()
+  if (!query) {
+    return true
+  }
+
+  return [
+    document.title,
+    document.filename,
+    document.topic ?? '',
+    document.abstract ?? '',
+    ...document.authors,
+    ...document.keywords,
+    formatDocumentDate(document.createdAt),
+  ].some((field) => field.toLowerCase().includes(query))
+}
+
+export function searchDocuments(source: DocumentRecord[], rawQuery: string) {
+  return source.filter((document) => matchesSearchQuery(document, rawQuery))
 }
 
 type FilterOptions = {
@@ -69,19 +115,21 @@ export function filterDocuments(
   return [...source]
     .filter((document) => {
       const matchesTopic =
-        selectedTopics.length === 0 || selectedTopics.includes(document.topic)
+        selectedTopics.length === 0 ||
+        (document.topic !== null && selectedTopics.includes(document.topic as TopicName))
       const matchesAuthor =
-        query.length === 0 || document.author.toLowerCase().includes(query)
+        query.length === 0 ||
+        document.authors.some((author) => author.toLowerCase().includes(query))
 
-      const docDate = new Date(`${document.dateISO}T00:00:00`)
+      const docDate = new Date(document.createdAt)
       const matchesFrom = !from || docDate >= from
       const matchesTo = !to || docDate <= to
 
       return matchesTopic && matchesAuthor && matchesFrom && matchesTo
     })
     .sort((left, right) => {
-      const leftTime = toTimestamp(left.dateISO)
-      const rightTime = toTimestamp(right.dateISO)
+      const leftTime = toTimestamp(left.createdAt)
+      const rightTime = toTimestamp(right.createdAt)
 
       return sortOrder === 'Newest' ? rightTime - leftTime : leftTime - rightTime
     })

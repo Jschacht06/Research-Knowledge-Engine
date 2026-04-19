@@ -1,5 +1,11 @@
+import { Link } from 'react-router-dom'
 import type { DocumentRecord } from '../../data/documents'
-import { authorInitial, topicAccent } from '../../utils/documents'
+import {
+  authorInitial,
+  formatAuthorList,
+  formatDocumentDate,
+  topicAccent,
+} from '../../utils/documents'
 
 type DocumentCardProps = {
   document: DocumentRecord
@@ -8,40 +14,38 @@ type DocumentCardProps = {
 
 export function DocumentCard({ document, compact = false }: DocumentCardProps) {
   return (
-    <article className="flex h-full flex-col rounded-[28px] border border-rke-border/80 bg-white p-6 shadow-[0_24px_70px_rgba(24,46,75,0.08)]">
-      <span
-        className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(document.topic)}`}
-      >
-        {document.topic}
-      </span>
-
-      <h3
-        className={`mt-5 font-bold tracking-tight text-rke-navy ${compact ? 'text-xl' : 'text-2xl'}`}
-      >
-        {document.title}
-      </h3>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-rke-copy">
-        <span className="grid size-8 place-items-center rounded-full bg-rke-teal text-xs font-bold text-white">
-          {authorInitial(document.author)}
+    <Link
+      className="group block h-full"
+      to={`/app/documents/${document.id}`}
+    >
+      <article className="flex h-full flex-col rounded-[28px] border border-rke-border/80 bg-white p-6 shadow-[0_24px_70px_rgba(24,46,75,0.08)] transition duration-200 group-hover:-translate-y-1 group-hover:border-rke-teal/30 group-hover:shadow-[0_30px_80px_rgba(24,46,75,0.12)]">
+        <span
+          className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(document.topic)}`}
+        >
+          {document.topic ?? 'Uncategorized'}
         </span>
-        <span>{document.author}</span>
-        <span className="text-slate-300">&bull;</span>
-        <span>{document.date}</span>
-      </div>
 
-      <p
-        className={`mt-4 text-sm leading-6 text-rke-copy ${compact ? 'line-clamp-3' : 'line-clamp-4'}`}
-      >
-        {document.summary}
-      </p>
+        <h3
+          className={`mt-5 font-bold tracking-tight text-rke-navy ${compact ? 'text-xl' : 'text-2xl'}`}
+        >
+          {document.title}
+        </h3>
 
-      <button
-        className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-rke-teal px-4 py-3 font-semibold text-rke-teal transition hover:bg-rke-teal hover:text-white"
-        type="button"
-      >
-        View document
-      </button>
-    </article>
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-rke-copy">
+          <span className="grid size-8 place-items-center rounded-full bg-rke-teal text-xs font-bold text-white">
+            {authorInitial(document.authors)}
+          </span>
+          <span>{formatAuthorList(document.authors)}</span>
+          <span className="text-slate-300">&bull;</span>
+          <span>{formatDocumentDate(document.createdAt)}</span>
+        </div>
+
+        <p
+          className={`mt-4 text-sm leading-6 text-rke-copy ${compact ? 'line-clamp-3' : 'line-clamp-4'}`}
+        >
+          {document.abstract || 'No abstract was provided for this document yet.'}
+        </p>
+      </article>
+    </Link>
   )
 }

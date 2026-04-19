@@ -3,10 +3,12 @@ import { useMemo, useState } from 'react'
 import { DocumentCard } from '../components/ui/DocumentCard'
 import { EmptyState } from '../components/ui/EmptyState'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { documents, type SortOrder, topicOptions, type TopicName } from '../data/documents'
+import { type SortOrder, topicOptions, type TopicName } from '../data/documents'
+import { useDocuments } from '../hooks/useDocuments'
 import { filterDocuments } from '../utils/documents'
 
 export function ExplorePage() {
+  const { documents, errorMessage, isLoading } = useDocuments()
   const [selectedTopics, setSelectedTopics] = useState<TopicName[]>([])
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -22,7 +24,7 @@ export function ExplorePage() {
         authorQuery,
         sortOrder,
       }),
-    [authorQuery, fromDate, selectedTopics, sortOrder, toDate],
+    [authorQuery, documents, fromDate, selectedTopics, sortOrder, toDate],
   )
 
   function toggleTopic(topic: TopicName) {
@@ -162,11 +164,21 @@ export function ExplorePage() {
           </div>
         </div>
 
-        {filteredDocuments.length > 0 ? (
+        {errorMessage ? (
+          <EmptyState
+            description={errorMessage}
+            title="Could not load documents for exploration"
+          />
+        ) : isLoading ? (
+          <EmptyState
+            description="Loading documents from your library..."
+            title="Fetching documents"
+          />
+        ) : filteredDocuments.length > 0 ? (
           <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
             {filteredDocuments.map((document) => (
               <DocumentCard
-                key={`${document.title}-${document.dateISO}`}
+                key={document.id}
                 compact
                 document={document}
               />
@@ -174,7 +186,7 @@ export function ExplorePage() {
           </div>
         ) : (
           <EmptyState
-            description="Try clearing one or more filters to widen the result set."
+            description="Try clearing one or more filters, or upload more research proposals to expand the knowledge base."
             title="No documents match the selected filters"
           />
         )}

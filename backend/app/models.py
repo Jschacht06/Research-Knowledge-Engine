@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, DateTime, ForeignKey, func, Text, Index
+from sqlalchemy import String, Integer, DateTime, ForeignKey, func, Text, Index, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
 from .db import Base
@@ -20,6 +20,11 @@ class Document(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     filename: Mapped[str] = mapped_column(String(255))
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    topic: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    abstract: Mapped[str | None] = mapped_column(Text, nullable=True)
+    authors: Mapped[list[str]] = mapped_column(JSON, default=list)
+    keywords: Mapped[list[str]] = mapped_column(JSON, default=list)
     filepath: Mapped[str] = mapped_column(String(500))
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
