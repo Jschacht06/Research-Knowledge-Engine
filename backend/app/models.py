@@ -22,6 +22,7 @@ class Document(Base):
     filename: Mapped[str] = mapped_column(String(255))
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     topic: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(40), nullable=True)
     abstract: Mapped[str | None] = mapped_column(Text, nullable=True)
     authors: Mapped[list[str]] = mapped_column(JSON, default=list)
     keywords: Mapped[list[str]] = mapped_column(JSON, default=list)

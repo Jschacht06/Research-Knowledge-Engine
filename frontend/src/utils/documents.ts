@@ -1,4 +1,4 @@
-import type { DocumentRecord, SortOrder, TopicName } from '../data/documents'
+import type { DocumentRecord, DocumentStatus, SortOrder, TopicName } from '../data/documents'
 
 export function parseDateInput(value: string): Date | null {
   const trimmed = value.trim()
@@ -75,6 +75,21 @@ export function topicAccent(topic: string | null) {
   return accents[topic as TopicName]
 }
 
+export function statusAccent(status: DocumentStatus | null) {
+  const accents: Record<DocumentStatus, string> = {
+    Goedgekeurd: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+    Afgekeurd: 'bg-rose-100 text-rose-700 ring-rose-200',
+    Aangevraagd: 'bg-amber-100 text-amber-700 ring-amber-200',
+    Done: 'bg-sky-100 text-sky-700 ring-sky-200',
+  }
+
+  if (!status || !(status in accents)) {
+    return 'bg-slate-100 text-slate-700 ring-slate-200'
+  }
+
+  return accents[status]
+}
+
 export function matchesSearchQuery(document: DocumentRecord, rawQuery: string) {
   const query = rawQuery.trim().toLowerCase()
   if (!query) {
@@ -85,6 +100,7 @@ export function matchesSearchQuery(document: DocumentRecord, rawQuery: string) {
     document.title,
     document.filename,
     document.topic ?? '',
+    document.status ?? '',
     document.abstract ?? '',
     ...document.authors,
     ...document.keywords,

@@ -44,6 +44,7 @@ def on_startup():
     with engine.begin() as conn:
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS title VARCHAR(255)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topic VARCHAR(120)"))
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS status VARCHAR(40)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS abstract TEXT"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS authors JSONB DEFAULT '[]'::jsonb"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS keywords JSONB DEFAULT '[]'::jsonb"))
@@ -72,6 +73,7 @@ class DocumentOut(BaseModel):
     title: str
     filename: str
     topic: str | None = None
+    status: str | None = None
     abstract: str | None = None
     authors: list[str]
     keywords: list[str]
@@ -145,6 +147,7 @@ async def upload_document(
     file: UploadFile = File(...),
     title: str = Form(...),
     topic: str = Form(""),
+    status: str = Form(""),
     abstract: str = Form(""),
     authors: str = Form("[]"),
     keywords: str = Form("[]"),
@@ -155,6 +158,11 @@ async def upload_document(
     cleaned_title = title.strip()
     if not cleaned_title:
         raise HTTPException(status_code=400, detail="Document title is required")
+
+    cleaned_status = status.strip()
+    allowed_statuses = {"Goedgekeurd", "Afgekeurd", "Aangevraagd", "Done"}
+    if cleaned_status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail="Please select a valid document status")
 
     ext = filename.lower().split(".")[-1]
     allowed = {"pdf", "docx", "pptx"}
@@ -178,6 +186,7 @@ async def upload_document(
         filename=Path(filename).name,
         title=cleaned_title,
         topic=topic.strip() or None,
+        status=cleaned_status,
         abstract=abstract.strip() or None,
         authors=parsed_authors,
         keywords=parsed_keywords,

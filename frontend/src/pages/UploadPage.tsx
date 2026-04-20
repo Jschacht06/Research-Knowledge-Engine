@@ -1,8 +1,8 @@
 import { ArrowLeft, FileUp, X } from 'lucide-react'
 import { startTransition, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { TopicName } from '../data/documents'
-import { topicOptions } from '../data/documents'
+import type { DocumentStatus, TopicName } from '../data/documents'
+import { documentStatusOptions, topicOptions } from '../data/documents'
 import { useAuth } from '../hooks/useAuth'
 import { uploadDocument } from '../lib/documents'
 import { ApiError } from '../lib/api'
@@ -19,6 +19,7 @@ export function UploadPage() {
   const [authorInput, setAuthorInput] = useState('')
   const [authors, setAuthors] = useState<string[]>([])
   const [topic, setTopic] = useState<TopicName | ''>('')
+  const [status, setStatus] = useState<DocumentStatus | ''>('')
   const [abstract, setAbstract] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
   const [keywords, setKeywords] = useState<string[]>([])
@@ -103,6 +104,11 @@ export function UploadPage() {
       return
     }
 
+    if (!status) {
+      setErrorMessage('Please select the document status.')
+      return
+    }
+
     setErrorMessage(null)
     setSuccessMessage(null)
     setIsSubmitting(true)
@@ -112,6 +118,7 @@ export function UploadPage() {
         file: selectedFile,
         title: title.trim(),
         topic,
+        status,
         abstract: abstract.trim(),
         authors,
         keywords,
@@ -124,6 +131,7 @@ export function UploadPage() {
         setAuthorInput('')
         setAuthors([])
         setTopic('')
+        setStatus('')
         setAbstract('')
         setKeywordInput('')
         setKeywords([])
@@ -259,6 +267,28 @@ export function UploadPage() {
                     : 'border-rke-border text-rke-copy hover:border-rke-teal/40 hover:text-rke-navy'
                 }`}
                 onClick={() => setTopic(option)}
+                type="button"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-rke-navy">
+            Document State
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {documentStatusOptions.map((option) => (
+              <button
+                key={option}
+                className={`rounded-2xl border px-4 py-4 text-sm font-medium transition ${
+                  status === option
+                    ? 'border-rke-amber bg-rke-amber text-white'
+                    : 'border-rke-border text-rke-copy hover:border-rke-amber/40 hover:text-rke-navy'
+                }`}
+                onClick={() => setStatus(option)}
                 type="button"
               >
                 {option}

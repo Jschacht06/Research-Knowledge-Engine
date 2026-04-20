@@ -6,6 +6,12 @@ export type TopicName =
   | 'Energy Systems'
   | 'Control Systems'
 
+export type DocumentStatus =
+  | 'Goedgekeurd'
+  | 'Afgekeurd'
+  | 'Aangevraagd'
+  | 'Done'
+
 export type SortOrder = 'Newest' | 'Oldest'
 
 export type DocumentRecord = {
@@ -13,6 +19,7 @@ export type DocumentRecord = {
   title: string
   filename: string
   topic: string | null
+  status: DocumentStatus | null
   abstract: string | null
   authors: string[]
   keywords: string[]
@@ -23,6 +30,7 @@ export type UploadDocumentPayload = {
   file: File
   title: string
   topic: string
+  status: DocumentStatus
   abstract: string
   authors: string[]
   keywords: string[]
@@ -35,4 +43,11 @@ export const topicOptions: TopicName[] = [
   'Sensors',
   'Energy Systems',
   'Control Systems',
+]
+
+export const documentStatusOptions: DocumentStatus[] = [
+  'Goedgekeurd',
+  'Afgekeurd',
+  'Aangevraagd',
+  'Done',
 ]

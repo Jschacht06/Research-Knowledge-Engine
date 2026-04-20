@@ -9,6 +9,7 @@ import { useDocuments } from '../hooks/useDocuments'
 import { fetchDocument, fetchDocumentFile } from '../lib/documents'
 import {
   formatDocumentDate,
+  statusAccent,
   topicAccent,
 } from '../utils/documents'
 
@@ -115,9 +116,14 @@ export function DocumentDetailPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-[32px] border border-rke-border/80 bg-white p-8 shadow-[0_24px_70px_rgba(24,46,75,0.08)]">
-          <span className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(document.topic)}`}>
-            {document.topic ?? 'Uncategorized'}
-          </span>
+          <div className="flex flex-wrap gap-2">
+            <span className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(document.topic)}`}>
+              {document.topic ?? 'Uncategorized'}
+            </span>
+            <span className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${statusAccent(document.status)}`}>
+              {document.status ?? 'No status'}
+            </span>
+          </div>
 
           <h1 className="mt-5 max-w-5xl text-4xl font-extrabold tracking-tight text-rke-navy md:text-5xl">
             {document.title}

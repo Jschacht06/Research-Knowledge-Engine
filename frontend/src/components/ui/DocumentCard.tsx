@@ -4,6 +4,7 @@ import {
   authorInitial,
   formatAuthorList,
   formatDocumentDate,
+  statusAccent,
   topicAccent,
 } from '../../utils/documents'
 
@@ -19,11 +20,18 @@ export function DocumentCard({ document, compact = false }: DocumentCardProps) {
       to={`/app/documents/${document.id}`}
     >
       <article className="flex h-full flex-col rounded-[28px] border border-rke-border/80 bg-white p-6 shadow-[0_24px_70px_rgba(24,46,75,0.08)] transition duration-200 group-hover:-translate-y-1 group-hover:border-rke-teal/30 group-hover:shadow-[0_30px_80px_rgba(24,46,75,0.12)]">
-        <span
-          className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(document.topic)}`}
-        >
-          {document.topic ?? 'Uncategorized'}
-        </span>
+        <div className="flex flex-wrap gap-2">
+          <span
+            className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(document.topic)}`}
+          >
+            {document.topic ?? 'Uncategorized'}
+          </span>
+          <span
+            className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-xs font-bold ring-1 ${statusAccent(document.status)}`}
+          >
+            {document.status ?? 'No status'}
+          </span>
+        </div>
 
         <h3
           className={`mt-5 font-bold tracking-tight text-rke-navy ${compact ? 'text-xl' : 'text-2xl'}`}

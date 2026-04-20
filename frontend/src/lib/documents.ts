@@ -1,4 +1,4 @@
-import type { DocumentRecord, UploadDocumentPayload } from '../data/documents'
+import type { DocumentRecord, DocumentStatus, UploadDocumentPayload } from '../data/documents'
 import { apiRequest } from './api'
 
 type DocumentApiResponse = {
@@ -6,10 +6,18 @@ type DocumentApiResponse = {
   title: string
   filename: string
   topic: string | null
+  status: string | null
   abstract: string | null
   authors: string[]
   keywords: string[]
   created_at: string
+}
+
+function normalizeStatus(status: string | null): DocumentStatus | null {
+  const allowedStatuses: DocumentStatus[] = ['Goedgekeurd', 'Afgekeurd', 'Aangevraagd', 'Done']
+  return status && allowedStatuses.includes(status as DocumentStatus)
+    ? (status as DocumentStatus)
+    : null
 }
 
 function normalizeDocument(document: DocumentApiResponse): DocumentRecord {
@@ -18,6 +26,7 @@ function normalizeDocument(document: DocumentApiResponse): DocumentRecord {
     title: document.title,
     filename: document.filename,
     topic: document.topic,
+    status: normalizeStatus(document.status),
     abstract: document.abstract,
     authors: document.authors,
     keywords: document.keywords,
@@ -46,6 +55,7 @@ export async function uploadDocument(token: string, payload: UploadDocumentPaylo
   formData.append('file', payload.file)
   formData.append('title', payload.title)
   formData.append('topic', payload.topic)
+  formData.append('status', payload.status)
   formData.append('abstract', payload.abstract)
   formData.append('authors', JSON.stringify(payload.authors))
   formData.append('keywords', JSON.stringify(payload.keywords))
