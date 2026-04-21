@@ -30,6 +30,7 @@ MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TEXT_CONTROL_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 SINGLE_LINE_CONTROL_PATTERN = re.compile(r"[\x00-\x1f\x7f]")
+MARKUP_CHARACTER_PATTERN = re.compile(r"[<>]")
 
 
 def normalize_spaces(value: str) -> str:
@@ -54,6 +55,13 @@ def validate_text(
     if pattern.search(cleaned):
         raise ValueError(f"{field_name} contains unsupported control characters")
 
+    return cleaned
+
+
+def validate_plain_metadata(value: str, *, field_name: str, max_length: int) -> str:
+    cleaned = validate_text(value, field_name=field_name, max_length=max_length)
+    if MARKUP_CHARACTER_PATTERN.search(cleaned):
+        raise ValueError(f"{field_name} cannot contain angle brackets")
     return cleaned
 
 
@@ -159,7 +167,7 @@ class RegisterIn(BaseModel):
     @field_validator("full_name")
     @classmethod
     def validate_full_name(cls, value: str) -> str:
-        return validate_text(value, field_name="Full name", max_length=255)
+        return validate_plain_metadata(value, field_name="Full name", max_length=255)
 
     @field_validator("password")
     @classmethod
@@ -184,7 +192,7 @@ class DocumentInput(BaseModel):
     @field_validator("title")
     @classmethod
     def validate_title(cls, value: str) -> str:
-        return validate_text(value, field_name="Document title", max_length=255)
+        return validate_plain_metadata(value, field_name="Document title", max_length=255)
 
     @field_validator("topics")
     @classmethod
@@ -218,7 +226,7 @@ class DocumentInput(BaseModel):
     @classmethod
     def validate_authors(cls, value: list[str]) -> list[str]:
         cleaned_authors = [
-            validate_text(author, field_name="Author", max_length=120)
+            validate_plain_metadata(author, field_name="Author", max_length=120)
             for author in value
             if author.strip()
         ]
@@ -233,7 +241,7 @@ class DocumentInput(BaseModel):
     @classmethod
     def validate_keywords(cls, value: list[str]) -> list[str]:
         cleaned_keywords = [
-            validate_text(keyword, field_name="Keyword", max_length=80)
+            validate_plain_metadata(keyword, field_name="Keyword", max_length=80)
             for keyword in value
             if keyword.strip()
         ]
@@ -259,7 +267,7 @@ class ChatConversationUpdateIn(BaseModel):
     @field_validator("title")
     @classmethod
     def validate_title(cls, value: str) -> str:
-        return validate_text(value, field_name="Conversation title", max_length=255)
+        return validate_plain_metadata(value, field_name="Conversation title", max_length=255)
 
 
 def validate_document_form(
