@@ -8,7 +8,7 @@ import { uploadDocument } from '../lib/documents'
 import { ApiError } from '../lib/api'
 
 const acceptedFileExtensions = ['pdf', 'docx', 'pptx']
-const maxFileSizeInBytes = 10 * 1024 * 1024
+const maxFileSizeInBytes = 25 * 1024 * 1024
 
 export function UploadPage() {
   const navigate = useNavigate()
@@ -74,7 +74,7 @@ export function UploadPage() {
     }
 
     if (file.size > maxFileSizeInBytes) {
-      setErrorMessage('Please upload a file smaller than 10 MB.')
+      setErrorMessage('Please upload a file smaller than 25 MB.')
       return
     }
 

@@ -2,10 +2,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-import json
-
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi import Body, FastAPI, Depends, HTTPException, UploadFile, File, Form, Path as ApiPath
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -24,6 +23,14 @@ from .security import (
 )
 from .extractors import extract_text
 from .rag import chunk_text, embed_texts, retrieve_top_chunks, chat_answer, conversational_answer
+from .validation import (
+    ChatConversationUpdateIn,
+    ChatIn,
+    RegisterIn,
+    validate_document_file,
+    validate_document_form,
+    validate_login_credentials,
+)
 
 app = FastAPI(title="Research KB API", version="0.2")
 
@@ -34,6 +41,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(_request, exc: RequestValidationError):
+    first_error = exc.errors()[0] if exc.errors() else {}
+    message = str(first_error.get("msg", "Invalid input")).removeprefix("Value error, ")
+    return JSONResponse(status_code=400, content={"detail": message})
 
 @app.on_event("startup")
 def on_startup():
@@ -56,12 +70,6 @@ def on_startup():
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS authors JSONB DEFAULT '[]'::jsonb"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS keywords JSONB DEFAULT '[]'::jsonb"))
     Path(settings.storage_dir).mkdir(parents=True, exist_ok=True)
-
-
-class RegisterIn(BaseModel):
-    email: str
-    full_name: str
-    password: str
 
 
 class UserOut(BaseModel):
@@ -93,11 +101,6 @@ class DocumentOut(BaseModel):
         from_attributes = True
 
 
-class ChatIn(BaseModel):
-    question: str
-    top_k: int = 6
-
-
 class ChatOut(BaseModel):
     answer: str
     sources: list[dict]
@@ -110,10 +113,6 @@ class ChatConversationOut(BaseModel):
     updated_at: datetime
     class Config:
         from_attributes = True
-
-
-class ChatConversationUpdateIn(BaseModel):
-    title: str
 
 
 class ChatConversationMessageOut(BaseModel):
@@ -136,32 +135,6 @@ def serialize_document(document: Document) -> Document:
     return document
 
 
-def parse_topics(raw_topics: str, fallback_topic: str = "") -> list[str]:
-    allowed_topics = {
-        "Robotics",
-        "AI / Machine Learning",
-        "Mechatronics",
-        "Sensors",
-        "Energy Systems",
-        "Control Systems",
-    }
-
-    try:
-        parsed_topics = [item.strip() for item in json.loads(raw_topics) if str(item).strip()]
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Topics must be a valid JSON array") from exc
-
-    if not parsed_topics and fallback_topic.strip():
-        parsed_topics = [fallback_topic.strip()]
-
-    unique_topics = list(dict.fromkeys(parsed_topics))
-    invalid_topics = [topic for topic in unique_topics if topic not in allowed_topics]
-    if invalid_topics:
-        raise HTTPException(status_code=400, detail="Please select valid research topics")
-
-    return unique_topics
-
-
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -171,19 +144,15 @@ def health():
 
 @app.post("/auth/register", response_model=UserOut)
 def register(payload: RegisterIn, db: Session = Depends(get_db)):
-    email = payload.email.strip().lower()
-    full_name = " ".join(payload.full_name.split())
-    if not email or not full_name or not payload.password:
-        raise HTTPException(status_code=400, detail="Email, full name and password required")
-
-    if len(full_name) > 255:
-        raise HTTPException(status_code=400, detail="Full name must be 255 characters or fewer")
-
-    existing = get_user_by_email(db, email)
+    existing = get_user_by_email(db, payload.email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    user = User(email=email, full_name=full_name, password_hash=hash_password(payload.password))
+    user = User(
+        email=payload.email,
+        full_name=payload.full_name,
+        password_hash=hash_password(payload.password),
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -192,9 +161,9 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
 
 @app.post("/auth/login", response_model=TokenOut)
 def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    email = form.username.strip().lower()
+    email, password = validate_login_credentials(form.username, form.password)
     user = get_user_by_email(db, email)
-    if not user or not verify_password(form.password, user.password_hash):
+    if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_access_token(user.id)
@@ -221,47 +190,33 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    filename = file.filename or "file"
-    cleaned_title = title.strip()
-    if not cleaned_title:
-        raise HTTPException(status_code=400, detail="Document title is required")
-
-    cleaned_status = status.strip()
-    allowed_statuses = {"Goedgekeurd", "Afgekeurd", "Aangevraagd", "Done"}
-    if cleaned_status not in allowed_statuses:
-        raise HTTPException(status_code=400, detail="Please select a valid document status")
-
-    ext = filename.lower().split(".")[-1]
-    allowed = {"pdf", "docx", "pptx"}
-    if ext not in allowed:
-        raise HTTPException(status_code=400, detail="Only PDF, DOCX, PPTX are allowed")
-
-    try:
-        parsed_authors = [item.strip() for item in json.loads(authors) if str(item).strip()]
-        parsed_keywords = [item.strip() for item in json.loads(keywords) if str(item).strip()]
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Authors and keywords must be valid JSON arrays") from exc
-
-    parsed_topics = parse_topics(topics, topic)
-    if not parsed_topics:
-        raise HTTPException(status_code=400, detail="Please select at least one research topic")
+    document_input = validate_document_form(
+        title=title,
+        topic=topic,
+        topics=topics,
+        status=status,
+        abstract=abstract,
+        authors=authors,
+        keywords=keywords,
+    )
+    filename, file_content = validate_document_file(file, required=True)
 
     doc_uuid = str(uuid.uuid4())
-    safe_name = f"{doc_uuid}_{Path(filename).name}"
+    safe_name = f"{doc_uuid}_{filename}"
     storage_path = Path(settings.storage_dir) / safe_name
 
     with storage_path.open("wb") as f:
-        f.write(file.file.read())
+        f.write(file_content)
 
     doc = Document(
-        filename=Path(filename).name,
-        title=cleaned_title,
-        topic=parsed_topics[0],
-        topics=parsed_topics,
-        status=cleaned_status,
-        abstract=abstract.strip() or None,
-        authors=parsed_authors,
-        keywords=parsed_keywords,
+        filename=filename,
+        title=document_input.title,
+        topic=document_input.topics[0],
+        topics=document_input.topics,
+        status=document_input.status,
+        abstract=document_input.abstract,
+        authors=document_input.authors,
+        keywords=document_input.keywords,
         filepath=str(storage_path),
         owner_id=current_user.id,
     )
@@ -284,7 +239,7 @@ async def upload_document(
 
 @app.put("/documents/{document_id}", response_model=DocumentOut)
 async def update_document(
-    document_id: int,
+    document_id: int = ApiPath(..., ge=1),
     title: str = Form(...),
     topic: str = Form(""),
     topics: str = Form("[]"),
@@ -304,49 +259,38 @@ async def update_document(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    cleaned_title = title.strip()
-    if not cleaned_title:
-        raise HTTPException(status_code=400, detail="Document title is required")
+    document_input = validate_document_form(
+        title=title,
+        topic=topic,
+        topics=topics,
+        status=status,
+        abstract=abstract,
+        authors=authors,
+        keywords=keywords,
+    )
 
-    cleaned_status = status.strip()
-    allowed_statuses = {"Goedgekeurd", "Afgekeurd", "Aangevraagd", "Done"}
-    if cleaned_status not in allowed_statuses:
-        raise HTTPException(status_code=400, detail="Please select a valid document status")
-
-    try:
-        parsed_authors = [item.strip() for item in json.loads(authors) if str(item).strip()]
-        parsed_keywords = [item.strip() for item in json.loads(keywords) if str(item).strip()]
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Authors and keywords must be valid JSON arrays") from exc
-
-    parsed_topics = parse_topics(topics, topic)
-    if not parsed_topics:
-        raise HTTPException(status_code=400, detail="Please select at least one research topic")
-
-    document.title = cleaned_title
-    document.topic = parsed_topics[0]
-    document.topics = parsed_topics
-    document.status = cleaned_status
-    document.abstract = abstract.strip() or None
-    document.authors = parsed_authors
-    document.keywords = parsed_keywords
+    document.title = document_input.title
+    document.topic = document_input.topics[0]
+    document.topics = document_input.topics
+    document.status = document_input.status
+    document.abstract = document_input.abstract
+    document.authors = document_input.authors
+    document.keywords = document_input.keywords
 
     if file and file.filename:
-        filename = file.filename or "file"
-        ext = filename.lower().split(".")[-1]
-        allowed = {"pdf", "docx", "pptx"}
-        if ext not in allowed:
-            raise HTTPException(status_code=400, detail="Only PDF, DOCX, PPTX are allowed")
-
+        validated_file = validate_document_file(file, required=False)
+        if validated_file is None:
+            raise HTTPException(status_code=400, detail="Please select a replacement file")
+        filename, file_content = validated_file
         old_path = Path(document.filepath)
         doc_uuid = str(uuid.uuid4())
-        safe_name = f"{doc_uuid}_{Path(filename).name}"
+        safe_name = f"{doc_uuid}_{filename}"
         storage_path = Path(settings.storage_dir) / safe_name
 
         with storage_path.open("wb") as f:
-            f.write(file.file.read())
+            f.write(file_content)
 
-        document.filename = Path(filename).name
+        document.filename = filename
         document.filepath = str(storage_path)
 
         db.query(DocumentChunk).filter(DocumentChunk.document_id == document.id).delete()
@@ -367,7 +311,7 @@ async def update_document(
 
 @app.delete("/documents/{document_id}")
 def delete_document(
-    document_id: int,
+    document_id: int = ApiPath(..., ge=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -412,7 +356,7 @@ def list_my_documents(db: Session = Depends(get_db), current_user: User = Depend
 
 @app.get("/documents/{document_id}", response_model=DocumentOut)
 def get_document(
-    document_id: int,
+    document_id: int = ApiPath(..., ge=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -429,7 +373,7 @@ def get_document(
 
 @app.get("/documents/{document_id}/file")
 def get_document_file(
-    document_id: int,
+    document_id: int = ApiPath(..., ge=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -525,8 +469,8 @@ def create_chat_conversation(
 
 @app.put("/chat/conversations/{conversation_id}", response_model=ChatConversationOut)
 def update_chat_conversation(
-    conversation_id: int,
-    payload: ChatConversationUpdateIn,
+    conversation_id: int = ApiPath(..., ge=1),
+    payload: ChatConversationUpdateIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -544,7 +488,7 @@ def update_chat_conversation(
 
 @app.delete("/chat/conversations/{conversation_id}")
 def delete_chat_conversation(
-    conversation_id: int,
+    conversation_id: int = ApiPath(..., ge=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -556,7 +500,7 @@ def delete_chat_conversation(
 
 @app.get("/chat/conversations/{conversation_id}/messages", response_model=list[ChatConversationMessageOut])
 def list_chat_messages(
-    conversation_id: int,
+    conversation_id: int = ApiPath(..., ge=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -571,8 +515,8 @@ def list_chat_messages(
 
 @app.post("/chat/conversations/{conversation_id}/messages", response_model=ChatConversationMessageOut)
 async def ask_chat_in_conversation(
-    conversation_id: int,
-    payload: ChatIn,
+    conversation_id: int = ApiPath(..., ge=1),
+    payload: ChatIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
