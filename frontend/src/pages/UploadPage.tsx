@@ -133,7 +133,7 @@ export function UploadPage() {
       })
 
       startTransition(() => {
-        setSuccessMessage('Document uploaded successfully. It is now available in your library and AI search.')
+        setSuccessMessage('Document uploaded successfully. It is now available in the shared library and AI search.')
         setSelectedFile(null)
         setTitle('')
         setAuthorInput('')

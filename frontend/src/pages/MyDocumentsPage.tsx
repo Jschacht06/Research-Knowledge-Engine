@@ -7,7 +7,7 @@ import { useDocuments } from '../hooks/useDocuments'
 import { searchDocuments } from '../utils/documents'
 
 export function MyDocumentsPage() {
-  const { documents, errorMessage, isLoading } = useDocuments()
+  const { documents, errorMessage, isLoading } = useDocuments('mine')
   const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q')?.trim() ?? ''
   const filteredDocuments = useMemo(

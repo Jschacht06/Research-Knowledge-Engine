@@ -1,13 +1,14 @@
 import type { FormEvent, KeyboardEvent } from 'react'
 import { Bot, CornerDownLeft, LoaderCircle, Sparkles, User2 } from 'lucide-react'
 import { startTransition, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { apiRequest, ApiError } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 
 type ChatSource = {
   doc_id: number
-  chunk_id: number
-  chunk_index: number
+  title: string
+  filename: string
 }
 
 type ChatResponse = {
@@ -32,7 +33,7 @@ export function ChatPage() {
       id: 'assistant-welcome',
       role: 'assistant',
       content:
-        'Ask me about the documents in your knowledge base and I will answer using the indexed research already uploaded to RKE.',
+        'Ask me about the documents in the knowledge base and I will answer using the indexed research already uploaded to RKE.',
     },
   ])
 
@@ -153,9 +154,20 @@ export function ChatPage() {
                       </p>
                       <div className="mt-2 space-y-2">
                         {message.sources.map((source) => (
-                          <p key={source.chunk_id}>
-                            Document #{source.doc_id} · chunk #{source.chunk_index + 1}
-                          </p>
+                          <Link
+                            key={source.doc_id}
+                            className="block rounded-xl border border-rke-border/60 px-3 py-2 transition hover:border-rke-teal/50 hover:bg-rke-teal-soft/40 hover:text-rke-teal"
+                            rel="noreferrer"
+                            target="_blank"
+                            to={`/app/documents/${source.doc_id}`}
+                          >
+                            <span className="block font-semibold text-rke-navy">
+                              {source.title}
+                            </span>
+                            <span className="mt-1 block text-[11px] text-rke-copy">
+                              {source.filename}
+                            </span>
+                          </Link>
                         ))}
                       </div>
                     </div>
@@ -177,7 +189,7 @@ export function ChatPage() {
                 </div>
                 <div className="flex items-center gap-3 rounded-[26px] border border-rke-border/70 bg-rke-surface/60 px-5 py-4 text-sm text-rke-copy">
                   <LoaderCircle className="animate-spin" size={16} />
-                  Thinking through your documents...
+                  Thinking through the shared documents...
                 </div>
               </article>
             )}
@@ -196,14 +208,14 @@ export function ChatPage() {
                   className="min-h-28 w-full resize-none rounded-[26px] border border-rke-border bg-rke-surface/50 px-5 py-4 text-sm leading-7 text-rke-navy outline-none transition focus:border-rke-teal"
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={handleDraftKeyDown}
-                  placeholder="Ask something about your uploaded research..."
+                  placeholder="Ask something about the uploaded research..."
                   value={draft}
                 />
               </label>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-rke-copy">
-                  The assistant only knows what exists in your indexed documents.
+                  The assistant only knows what exists in the indexed documents.
                 </p>
                 <button
                   className="inline-flex items-center gap-2 rounded-2xl bg-rke-amber px-5 py-3 text-sm font-bold text-white shadow-[0_12px_28px_rgba(245,162,6,0.28)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
@@ -226,7 +238,7 @@ export function ChatPage() {
           </p>
           <div className="mt-4 space-y-3 text-sm leading-7 text-rke-copy">
             <p>The backend embeds your question, retrieves relevant chunks and then asks the model to answer with that context.</p>
-            <p>Use this page for summaries, comparisons and finding related proposals in your own uploaded knowledge base.</p>
+            <p>Use this page for summaries, comparisons and finding related proposals in the shared knowledge base.</p>
           </div>
         </section>
       </aside>

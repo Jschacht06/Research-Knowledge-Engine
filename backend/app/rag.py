@@ -34,9 +34,9 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
 
 
 async def chat_answer(question: str, context_blocks: list[dict]) -> str:
-    # context_blocks: [{doc_id, chunk_id, content, filename}]
+    # Keep source IDs out of the prompt text so the model does not print raw chunk references.
     context_text = "\n\n".join(
-        [f"[source doc={b['doc_id']} chunk={b['chunk_id']} file={b['filename']}]\n{b['content']}" for b in context_blocks]
+        [f"[source title={b['title']} file={b['filename']}]\n{b['content']}" for b in context_blocks]
     )
 
     system = (
@@ -47,10 +47,10 @@ async def chat_answer(question: str, context_blocks: list[dict]) -> str:
         "If the provided sources do not explicitly contain the answer, say that the database does not contain enough information.\n"
         "Do not invent citations, papers, dates, authors, algorithms, or facts.\n"
         "Only refer to facts that are present in the provided source text.\n"
-        "End with a 'Sources' section listing only the provided doc_id/chunk_id references you actually used."
+        "Do not include a Sources section, source list, raw document IDs, or chunk IDs in your answer."
     )
 
-    prompt = f"{system}\n\nSOURCES:\n{context_text}\n\nQUESTION:\n{question}\n\nREPONSE:"
+    prompt = f"{system}\n\nSOURCES:\n{context_text}\n\nQUESTION:\n{question}\n\nRESPONSE:"
 
     url = f"{settings.ollama_base_url}/api/generate"
     async with httpx.AsyncClient(timeout=120) as client:
@@ -62,12 +62,11 @@ async def chat_answer(question: str, context_blocks: list[dict]) -> str:
         return r.json().get("response", "").strip()
 
 
-def retrieve_top_chunks(db: Session, owner_id: int, query_vec: list[float], top_k: int = 6):
+def retrieve_top_chunks(db: Session, query_vec: list[float], top_k: int = 6):
     # Cosine distance using pgvector
     q = (
         db.query(DocumentChunk)
         .join(DocumentChunk.document)
-        .filter(DocumentChunk.document.has(owner_id=owner_id))
         .order_by(DocumentChunk.embedding.cosine_distance(query_vec))
         .limit(top_k)
     )

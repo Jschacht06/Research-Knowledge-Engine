@@ -9,6 +9,7 @@ import { apiRequest } from './api'
 
 type DocumentApiResponse = {
   id: number
+  owner_id: number
   title: string
   filename: string
   topic: string | null
@@ -48,6 +49,7 @@ function normalizeDocument(document: DocumentApiResponse): DocumentRecord {
 
   return {
     id: document.id,
+    ownerId: document.owner_id,
     title: document.title,
     filename: document.filename,
     topic: normalizedTopics[0] ?? document.topic,
@@ -62,6 +64,14 @@ function normalizeDocument(document: DocumentApiResponse): DocumentRecord {
 
 export async function fetchDocuments(token: string) {
   const response = await apiRequest<DocumentApiResponse[]>('/documents', {
+    token,
+  })
+
+  return response.map(normalizeDocument)
+}
+
+export async function fetchMyDocuments(token: string) {
+  const response = await apiRequest<DocumentApiResponse[]>('/documents/mine', {
     token,
   })
 

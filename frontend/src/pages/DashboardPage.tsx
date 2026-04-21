@@ -12,6 +12,7 @@ import { documentTopics, searchDocuments } from '../utils/documents'
 export function DashboardPage() {
   const { user } = useAuth()
   const { documents, errorMessage, isLoading } = useDocuments()
+  const { documents: myDocuments } = useDocuments('mine')
   const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q')?.trim() ?? ''
   const uniqueTopics = new Set(documents.flatMap((document) => documentTopics(document)))
@@ -32,23 +33,23 @@ export function DashboardPage() {
   }).format(new Date())
   const stats = [
     {
-      title: 'Total Uploads',
+      title: 'Total Documents',
       value: String(documents.length),
-      detail: documents.length > 0 ? 'Documents stored in your library' : 'No uploads yet',
+      detail: documents.length > 0 ? 'Documents stored in the shared library' : 'No uploads yet',
       icon: Upload,
       accentClassName: 'bg-rke-teal-soft text-rke-teal',
     },
     {
       title: 'My Documents',
-      value: String(documents.length),
-      detail: documents.length > 0 ? 'Available for AI search and retrieval' : 'Start by uploading your first file',
+      value: String(myDocuments.length),
+      detail: myDocuments.length > 0 ? 'Documents uploaded by you' : 'Start by uploading your first file',
       icon: FileText,
       accentClassName: 'bg-rke-amber-soft text-rke-amber',
     },
     {
       title: 'Research Topics',
       value: String(uniqueTopics.size),
-      detail: uniqueTopics.size > 0 ? 'Active categories in your uploads' : 'No topics yet',
+      detail: uniqueTopics.size > 0 ? 'Active categories in the shared library' : 'No topics yet',
       icon: BookOpen,
       accentClassName: 'bg-rke-violet-soft text-rke-violet',
     },
@@ -87,7 +88,7 @@ export function DashboardPage() {
           description={
             searchQuery
               ? `Showing recent matches for "${searchQuery}".`
-              : 'The newest files uploaded to your own research library.'
+              : 'The newest files uploaded to the shared research library.'
           }
           eyebrow="Recent Activity"
           title="Recent documents"
@@ -96,7 +97,7 @@ export function DashboardPage() {
         {errorMessage ? (
           <EmptyState
             description={errorMessage}
-            title="Could not load your uploaded documents"
+            title="Could not load recent documents"
           />
         ) : isLoading ? (
           <EmptyState

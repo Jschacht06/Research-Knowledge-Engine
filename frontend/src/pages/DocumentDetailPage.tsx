@@ -16,7 +16,7 @@ import {
 
 export function DocumentDetailPage() {
   const { documentId } = useParams()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const { documents } = useDocuments()
   const [document, setDocument] = useState<DocumentRecord | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -126,14 +126,16 @@ export function DocumentDetailPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-[32px] border border-rke-border/80 bg-white p-8 shadow-[0_24px_70px_rgba(24,46,75,0.08)]">
-          <div className="mb-5 flex justify-end">
-            <Link
-              className="inline-flex items-center justify-center rounded-2xl border border-rke-teal px-4 py-3 text-sm font-semibold text-rke-teal transition hover:bg-rke-teal hover:text-white"
-              to={`/app/documents/${document.id}/edit`}
-            >
-              Edit document
-            </Link>
-          </div>
+          {document.ownerId === user?.id && (
+            <div className="mb-5 flex justify-end">
+              <Link
+                className="inline-flex items-center justify-center rounded-2xl border border-rke-teal px-4 py-3 text-sm font-semibold text-rke-teal transition hover:bg-rke-teal hover:text-white"
+                to={`/app/documents/${document.id}/edit`}
+              >
+                Edit document
+              </Link>
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2">
             {topics.length > 0 ? (

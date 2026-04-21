@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { DocumentRecord } from '../data/documents'
 import { useAuth } from './useAuth'
-import { fetchDocuments } from '../lib/documents'
+import { fetchDocuments, fetchMyDocuments } from '../lib/documents'
 
-export function useDocuments() {
+type DocumentScope = 'all' | 'mine'
+
+export function useDocuments(scope: DocumentScope = 'all') {
   const { token } = useAuth()
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -23,14 +25,17 @@ export function useDocuments() {
       setErrorMessage(null)
 
       try {
-        const nextDocuments = await fetchDocuments(token)
+        const nextDocuments =
+          scope === 'mine'
+            ? await fetchMyDocuments(token)
+            : await fetchDocuments(token)
         if (!cancelled) {
           setDocuments(nextDocuments)
         }
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
-            error instanceof Error ? error.message : 'Could not load your documents.',
+            error instanceof Error ? error.message : 'Could not load documents.',
           )
         }
       } finally {
@@ -45,7 +50,7 @@ export function useDocuments() {
     return () => {
       cancelled = true
     }
-  }, [token])
+  }, [scope, token])
 
   return {
     documents,

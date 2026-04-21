@@ -17,6 +17,7 @@ export type SortOrder = 'Newest' | 'Oldest'
 
 export type DocumentRecord = {
   id: number
+  ownerId: number
   title: string
   filename: string
   topic: string | null

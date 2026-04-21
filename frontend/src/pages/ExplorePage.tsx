@@ -222,7 +222,7 @@ export function ExplorePage() {
           />
         ) : isLoading ? (
           <EmptyState
-            description="Loading documents from your library..."
+            description="Loading documents from the shared library..."
             title="Fetching documents"
           />
         ) : filteredDocuments.length > 0 ? (

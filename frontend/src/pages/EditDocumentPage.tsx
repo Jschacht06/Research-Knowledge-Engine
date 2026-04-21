@@ -15,7 +15,7 @@ export function EditDocumentPage() {
   const navigate = useNavigate()
   const { documentId } = useParams()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const [document, setDocument] = useState<DocumentRecord | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [title, setTitle] = useState('')
@@ -50,6 +50,12 @@ export function EditDocumentPage() {
       try {
         const nextDocument = await fetchDocument(activeToken, numericDocumentId)
         if (!cancelled) {
+          if (nextDocument.ownerId !== user?.id) {
+            setErrorMessage('You can only edit documents that you uploaded.')
+            setIsLoading(false)
+            return
+          }
+
           setDocument(nextDocument)
           setTitle(nextDocument.title)
           setAuthors(nextDocument.authors)
@@ -76,7 +82,7 @@ export function EditDocumentPage() {
     return () => {
       cancelled = true
     }
-  }, [numericDocumentId, token])
+  }, [numericDocumentId, token, user?.id])
 
   const fileLabel = useMemo(() => {
     if (selectedFile) {

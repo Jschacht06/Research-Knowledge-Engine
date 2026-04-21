@@ -76,6 +76,7 @@ class TokenOut(BaseModel):
 
 class DocumentOut(BaseModel):
     id: int
+    owner_id: int
     title: str
     filename: str
     topic: str | None = None
@@ -338,6 +339,16 @@ async def update_document(
 def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     documents = (
         db.query(Document)
+        .order_by(Document.id.desc())
+        .all()
+    )
+    return [serialize_document(document) for document in documents]
+
+
+@app.get("/documents/mine", response_model=list[DocumentOut])
+def list_my_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    documents = (
+        db.query(Document)
         .filter(Document.owner_id == current_user.id)
         .order_by(Document.id.desc())
         .all()
@@ -353,7 +364,7 @@ def get_document(
 ):
     document = (
         db.query(Document)
-        .filter(Document.id == document_id, Document.owner_id == current_user.id)
+        .filter(Document.id == document_id)
         .first()
     )
     if not document:
@@ -370,7 +381,7 @@ def get_document_file(
 ):
     document = (
         db.query(Document)
-        .filter(Document.id == document_id, Document.owner_id == current_user.id)
+        .filter(Document.id == document_id)
         .first()
     )
     if not document:
@@ -399,14 +410,29 @@ async def ask_chat(payload: ChatIn, db: Session = Depends(get_db), current_user:
         raise HTTPException(status_code=400, detail="Question required")
 
     qvec = (await embed_texts([question]))[0]
-    chunks = retrieve_top_chunks(db, current_user.id, qvec, top_k=payload.top_k)
+    chunks = retrieve_top_chunks(db, qvec, top_k=payload.top_k)
 
     sources = []
+    source_ids = set()
     context_blocks = []
     for ch in chunks:
-        sources.append({"doc_id": ch.document_id, "chunk_id": ch.id, "chunk_index": ch.chunk_index})
+        if ch.document_id not in source_ids:
+            source_ids.add(ch.document_id)
+            sources.append(
+                {
+                    "doc_id": ch.document_id,
+                    "title": ch.document.title or ch.document.filename,
+                    "filename": ch.document.filename,
+                }
+            )
         context_blocks.append(
-            {"doc_id": ch.document_id, "chunk_id": ch.id, "content": ch.content, "filename": ch.document.filename}
+            {
+                "doc_id": ch.document_id,
+                "chunk_id": ch.id,
+                "content": ch.content,
+                "filename": ch.document.filename,
+                "title": ch.document.title or ch.document.filename,
+            }
         )
 
     answer = await chat_answer(question, context_blocks)
