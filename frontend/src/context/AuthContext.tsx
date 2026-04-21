@@ -37,7 +37,11 @@ async function loginRequest(payload: LoginPayload) {
 async function registerRequest(payload: RegisterPayload) {
   await apiRequest<AuthUser>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      email: payload.email,
+      full_name: payload.fullName,
+      password: payload.password,
+    }),
     headers: {
       'Content-Type': 'application/json',
     },
@@ -110,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await registerRequest({
       ...payload,
       email: normalizedEmail,
+      fullName: payload.fullName.trim(),
     })
 
     await login({

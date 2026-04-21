@@ -8,6 +8,7 @@ import { StatCard } from '../components/ui/StatCard'
 import { useAuth } from '../hooks/useAuth'
 import { useDocuments } from '../hooks/useDocuments'
 import { documentTopics, searchDocuments } from '../utils/documents'
+import { userDisplayName } from '../utils/users'
 
 export function DashboardPage() {
   const { user } = useAuth()
@@ -20,11 +21,7 @@ export function DashboardPage() {
     () => searchDocuments(documents, searchQuery).slice(0, 3),
     [documents, searchQuery],
   )
-  const username =
-    user?.email
-      ?.split('@')[0]
-      .replace(/[._-]+/g, ' ')
-      .replace(/\b\w/g, (character) => character.toUpperCase()) ?? 'Researcher'
+  const username = userDisplayName(user, 'Researcher')
   const currentDateLabel = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',

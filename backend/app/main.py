@@ -42,6 +42,7 @@ def on_startup():
         conn.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(bind=engine)
     with engine.begin() as conn:
+        conn.execute(sql_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS title VARCHAR(255)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topic VARCHAR(120)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topics JSONB DEFAULT '[]'::jsonb"))
@@ -59,12 +60,14 @@ def on_startup():
 
 class RegisterIn(BaseModel):
     email: str
+    full_name: str
     password: str
 
 
 class UserOut(BaseModel):
     id: int
     email: str
+    full_name: str | None = None
     class Config:
         from_attributes = True
 
@@ -169,14 +172,18 @@ def health():
 @app.post("/auth/register", response_model=UserOut)
 def register(payload: RegisterIn, db: Session = Depends(get_db)):
     email = payload.email.strip().lower()
-    if not email or not payload.password:
-        raise HTTPException(status_code=400, detail="Email and password required")
+    full_name = " ".join(payload.full_name.split())
+    if not email or not full_name or not payload.password:
+        raise HTTPException(status_code=400, detail="Email, full name and password required")
+
+    if len(full_name) > 255:
+        raise HTTPException(status_code=400, detail="Full name must be 255 characters or fewer")
 
     existing = get_user_by_email(db, email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    user = User(email=email, password_hash=hash_password(payload.password))
+    user = User(email=email, full_name=full_name, password_hash=hash_password(payload.password))
     db.add(user)
     db.commit()
     db.refresh(user)

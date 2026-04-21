@@ -2,6 +2,7 @@ import { ChevronDown, LogOut, Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { userDisplayName, userInitials } from '../../utils/users'
 
 export function WorkspaceSearchBar() {
   const navigate = useNavigate()
@@ -10,7 +11,8 @@ export function WorkspaceSearchBar() {
   const { logout, user } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const initials = (user?.email?.charAt(0) ?? 'U').toUpperCase()
+  const initials = userInitials(user)
+  const displayName = userDisplayName(user, 'Authenticated user')
   const query = searchParams.get('q') ?? ''
 
   useEffect(() => {
@@ -148,8 +150,13 @@ export function WorkspaceSearchBar() {
                     Signed in as
                   </p>
                   <p className="mt-2 truncate text-sm font-bold text-rke-navy">
-                    {user?.email ?? 'Authenticated user'}
+                    {displayName}
                   </p>
+                  {user?.email && (
+                    <p className="mt-1 truncate text-xs text-rke-copy">
+                      {user.email}
+                    </p>
+                  )}
                 </div>
 
                 <button

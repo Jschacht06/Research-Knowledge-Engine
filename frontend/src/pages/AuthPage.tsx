@@ -46,7 +46,7 @@ export function AuthPage({ mode }: AuthPageProps) {
       if (isLogin) {
         await login({ email, password })
       } else {
-        await register({ email, password })
+        await register({ email, fullName: fullName.trim(), password })
       }
 
       navigate(from, { replace: true })

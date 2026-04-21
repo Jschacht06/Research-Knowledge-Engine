@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { userDisplayName, userInitials } from '../../utils/users'
 import { AppLogo } from '../ui/AppLogo'
 
 const links = [
@@ -23,12 +24,8 @@ const links = [
 export function WorkspaceSidebar() {
   const navigate = useNavigate()
   const { logout, user } = useAuth()
-  const initials = (user?.email?.charAt(0) ?? 'U').toUpperCase()
-  const username =
-    user?.email
-      ?.split('@')[0]
-      .replace(/[._-]+/g, ' ')
-      .replace(/\b\w/g, (character) => character.toUpperCase()) ?? 'User'
+  const initials = userInitials(user)
+  const username = userDisplayName(user)
 
   function handleLogout() {
     logout()

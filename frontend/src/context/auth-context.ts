@@ -3,6 +3,7 @@ import { createContext } from 'react'
 export type AuthUser = {
   id: number
   email: string
+  full_name: string | null
 }
 
 export type LoginPayload = {
@@ -12,6 +13,7 @@ export type LoginPayload = {
 
 export type RegisterPayload = {
   email: string
+  fullName: string
   password: string
 }
 
