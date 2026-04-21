@@ -6,6 +6,7 @@ import { AuthPage } from './pages/AuthPage'
 import { ChatPage } from './pages/ChatPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
+import { EditDocumentPage } from './pages/EditDocumentPage'
 import { ExplorePage } from './pages/ExplorePage'
 import { LandingPage } from './pages/LandingPage'
 import { MyDocumentsPage } from './pages/MyDocumentsPage'
@@ -36,6 +37,7 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="documents" element={<MyDocumentsPage />} />
           <Route path="documents/:documentId" element={<DocumentDetailPage />} />
+          <Route path="documents/:documentId/edit" element={<EditDocumentPage />} />
           <Route path="explore" element={<ExplorePage />} />
           <Route path="upload" element={<UploadPage />} />
           <Route path="settings" element={<SettingsPage />} />

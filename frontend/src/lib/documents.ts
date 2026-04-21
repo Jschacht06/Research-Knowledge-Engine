@@ -1,4 +1,9 @@
-import type { DocumentRecord, DocumentStatus, UploadDocumentPayload } from '../data/documents'
+import type {
+  DocumentRecord,
+  DocumentStatus,
+  UpdateDocumentPayload,
+  UploadDocumentPayload,
+} from '../data/documents'
 import { apiRequest } from './api'
 
 type DocumentApiResponse = {
@@ -62,6 +67,31 @@ export async function uploadDocument(token: string, payload: UploadDocumentPaylo
 
   const response = await apiRequest<DocumentApiResponse>('/documents/upload', {
     method: 'POST',
+    token,
+    body: formData,
+  })
+
+  return normalizeDocument(response)
+}
+
+export async function updateDocument(
+  token: string,
+  documentId: number,
+  payload: UpdateDocumentPayload,
+) {
+  const formData = new FormData()
+  if (payload.file) {
+    formData.append('file', payload.file)
+  }
+  formData.append('title', payload.title)
+  formData.append('topic', payload.topic)
+  formData.append('status', payload.status)
+  formData.append('abstract', payload.abstract)
+  formData.append('authors', JSON.stringify(payload.authors))
+  formData.append('keywords', JSON.stringify(payload.keywords))
+
+  const response = await apiRequest<DocumentApiResponse>(`/documents/${documentId}`, {
+    method: 'PUT',
     token,
     body: formData,
   })

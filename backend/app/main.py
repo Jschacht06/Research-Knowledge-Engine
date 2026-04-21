@@ -210,6 +210,83 @@ async def upload_document(
     return doc
 
 
+@app.put("/documents/{document_id}", response_model=DocumentOut)
+async def update_document(
+    document_id: int,
+    title: str = Form(...),
+    topic: str = Form(""),
+    status: str = Form(""),
+    abstract: str = Form(""),
+    authors: str = Form("[]"),
+    keywords: str = Form("[]"),
+    file: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.owner_id == current_user.id)
+        .first()
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    cleaned_title = title.strip()
+    if not cleaned_title:
+        raise HTTPException(status_code=400, detail="Document title is required")
+
+    cleaned_status = status.strip()
+    allowed_statuses = {"Goedgekeurd", "Afgekeurd", "Aangevraagd", "Done"}
+    if cleaned_status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail="Please select a valid document status")
+
+    try:
+        parsed_authors = [item.strip() for item in json.loads(authors) if str(item).strip()]
+        parsed_keywords = [item.strip() for item in json.loads(keywords) if str(item).strip()]
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Authors and keywords must be valid JSON arrays") from exc
+
+    document.title = cleaned_title
+    document.topic = topic.strip() or None
+    document.status = cleaned_status
+    document.abstract = abstract.strip() or None
+    document.authors = parsed_authors
+    document.keywords = parsed_keywords
+
+    if file and file.filename:
+        filename = file.filename or "file"
+        ext = filename.lower().split(".")[-1]
+        allowed = {"pdf", "docx", "pptx"}
+        if ext not in allowed:
+            raise HTTPException(status_code=400, detail="Only PDF, DOCX, PPTX are allowed")
+
+        old_path = Path(document.filepath)
+        doc_uuid = str(uuid.uuid4())
+        safe_name = f"{doc_uuid}_{Path(filename).name}"
+        storage_path = Path(settings.storage_dir) / safe_name
+
+        with storage_path.open("wb") as f:
+            f.write(file.file.read())
+
+        document.filename = Path(filename).name
+        document.filepath = str(storage_path)
+
+        db.query(DocumentChunk).filter(DocumentChunk.document_id == document.id).delete()
+        text_content = extract_text(document.filepath)
+        chunks = chunk_text(text_content)
+        if chunks:
+            vectors = await embed_texts(chunks)
+            for i, (c, v) in enumerate(zip(chunks, vectors)):
+                db.add(DocumentChunk(document_id=document.id, chunk_index=i, content=c, embedding=v))
+
+        if old_path.exists():
+            old_path.unlink()
+
+    db.commit()
+    db.refresh(document)
+    return document
+
+
 @app.get("/documents", response_model=list[DocumentOut])
 def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     documents = (

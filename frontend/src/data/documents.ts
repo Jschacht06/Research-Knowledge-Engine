@@ -36,6 +36,16 @@ export type UploadDocumentPayload = {
   keywords: string[]
 }
 
+export type UpdateDocumentPayload = {
+  file?: File | null
+  title: string
+  topic: string
+  status: DocumentStatus
+  abstract: string
+  authors: string[]
+  keywords: string[]
+}
+
 export const topicOptions: TopicName[] = [
   'Robotics',
   'AI / Machine Learning',
