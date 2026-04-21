@@ -1,6 +1,7 @@
 import { CalendarDays, Download, FileText, Trash2, User2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { EmptyState } from '../components/ui/EmptyState'
 import { SectionHeading } from '../components/ui/SectionHeading'
 import type { DocumentRecord } from '../data/documents'
@@ -24,6 +25,7 @@ export function DocumentDetailPage() {
   const [previewContentType, setPreviewContentType] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null)
 
@@ -122,11 +124,6 @@ export function DocumentDetailPage() {
       return
     }
 
-    const shouldDelete = window.confirm(`Delete "${document.title}"? This cannot be undone.`)
-    if (!shouldDelete) {
-      return
-    }
-
     setIsDeleting(true)
     setDeleteErrorMessage(null)
 
@@ -134,6 +131,7 @@ export function DocumentDetailPage() {
       await deleteDocument(token, document.id)
       navigate('/app/documents')
     } catch (error) {
+      setIsDeleteDialogOpen(false)
       setDeleteErrorMessage(
         error instanceof Error ? error.message : 'Could not delete the document.',
       )
@@ -143,6 +141,16 @@ export function DocumentDetailPage() {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        confirmLabel="Delete document"
+        description={`"${document.title}" will be removed from the library and AI search. This action cannot be undone.`}
+        isOpen={isDeleteDialogOpen}
+        isPending={isDeleting}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => void handleDeleteDocument()}
+        title="Delete this document?"
+      />
+
       <div className="flex items-center gap-2 text-xs text-rke-copy">
         <Link className="transition hover:text-rke-navy" to="/app/dashboard">Home</Link>
         <span>&gt;</span>
@@ -170,7 +178,7 @@ export function DocumentDetailPage() {
               <button
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isDeleting}
-                onClick={() => void handleDeleteDocument()}
+                onClick={() => setIsDeleteDialogOpen(true)}
                 type="button"
               >
                 <Trash2 size={16} />
