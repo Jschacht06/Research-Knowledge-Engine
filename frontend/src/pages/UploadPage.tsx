@@ -18,7 +18,7 @@ export function UploadPage() {
   const [title, setTitle] = useState('')
   const [authorInput, setAuthorInput] = useState('')
   const [authors, setAuthors] = useState<string[]>([])
-  const [topic, setTopic] = useState<TopicName | ''>('')
+  const [topics, setTopics] = useState<TopicName[]>([])
   const [status, setStatus] = useState<DocumentStatus | ''>('')
   const [abstract, setAbstract] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
@@ -52,6 +52,14 @@ export function UploadPage() {
 
   function removeKeyword(keyword: string) {
     setKeywords((current) => current.filter((item) => item !== keyword))
+  }
+
+  function toggleTopic(topic: TopicName) {
+    setTopics((current) =>
+      current.includes(topic)
+        ? current.filter((item) => item !== topic)
+        : [...current, topic],
+    )
   }
 
   function handleFileSelection(file: File | null) {
@@ -99,8 +107,8 @@ export function UploadPage() {
       return
     }
 
-    if (!topic) {
-      setErrorMessage('Please select a research topic.')
+    if (topics.length === 0) {
+      setErrorMessage('Please select at least one research topic.')
       return
     }
 
@@ -117,7 +125,7 @@ export function UploadPage() {
       await uploadDocument(token, {
         file: selectedFile,
         title: title.trim(),
-        topic,
+        topics,
         status,
         abstract: abstract.trim(),
         authors,
@@ -130,7 +138,7 @@ export function UploadPage() {
         setTitle('')
         setAuthorInput('')
         setAuthors([])
-        setTopic('')
+        setTopics([])
         setStatus('')
         setAbstract('')
         setKeywordInput('')
@@ -255,18 +263,18 @@ export function UploadPage() {
 
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.08em] text-rke-navy">
-            Research Focus / Topic
+            Research Focus / Topics
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {topicOptions.map((option) => (
               <button
                 key={option}
                 className={`rounded-2xl border px-4 py-4 text-sm font-medium transition ${
-                  topic === option
+                  topics.includes(option)
                     ? 'border-rke-teal bg-rke-teal text-white'
                     : 'border-rke-border text-rke-copy hover:border-rke-teal/40 hover:text-rke-navy'
                 }`}
-                onClick={() => setTopic(option)}
+                onClick={() => toggleTopic(option)}
                 type="button"
               >
                 {option}

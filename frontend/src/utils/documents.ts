@@ -75,6 +75,14 @@ export function topicAccent(topic: string | null) {
   return accents[topic as TopicName]
 }
 
+export function documentTopics(document: DocumentRecord): TopicName[] {
+  if (document.topics.length > 0) {
+    return document.topics
+  }
+
+  return document.topic ? [document.topic as TopicName] : []
+}
+
 export function statusAccent(status: DocumentStatus | null) {
   const accents: Record<DocumentStatus, string> = {
     Goedgekeurd: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
@@ -100,6 +108,7 @@ export function matchesSearchQuery(document: DocumentRecord, rawQuery: string) {
     document.title,
     document.filename,
     document.topic ?? '',
+    ...documentTopics(document),
     document.status ?? '',
     document.abstract ?? '',
     ...document.authors,
@@ -114,6 +123,7 @@ export function searchDocuments(source: DocumentRecord[], rawQuery: string) {
 
 type FilterOptions = {
   selectedTopics: TopicName[]
+  selectedStatuses: DocumentStatus[]
   fromDate: string
   toDate: string
   authorQuery: string
@@ -122,7 +132,7 @@ type FilterOptions = {
 
 export function filterDocuments(
   source: DocumentRecord[],
-  { selectedTopics, fromDate, toDate, authorQuery, sortOrder }: FilterOptions,
+  { selectedTopics, selectedStatuses, fromDate, toDate, authorQuery, sortOrder }: FilterOptions,
 ) {
   const from = parseDateInput(fromDate)
   const to = parseDateInput(toDate)
@@ -132,7 +142,10 @@ export function filterDocuments(
     .filter((document) => {
       const matchesTopic =
         selectedTopics.length === 0 ||
-        (document.topic !== null && selectedTopics.includes(document.topic as TopicName))
+        documentTopics(document).some((topic) => selectedTopics.includes(topic))
+      const matchesStatus =
+        selectedStatuses.length === 0 ||
+        (document.status !== null && selectedStatuses.includes(document.status))
       const matchesAuthor =
         query.length === 0 ||
         document.authors.some((author) => author.toLowerCase().includes(query))
@@ -141,7 +154,7 @@ export function filterDocuments(
       const matchesFrom = !from || docDate >= from
       const matchesTo = !to || docDate <= to
 
-      return matchesTopic && matchesAuthor && matchesFrom && matchesTo
+      return matchesTopic && matchesStatus && matchesAuthor && matchesFrom && matchesTo
     })
     .sort((left, right) => {
       const leftTime = toTimestamp(left.createdAt)

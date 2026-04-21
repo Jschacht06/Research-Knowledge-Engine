@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useDocuments } from '../hooks/useDocuments'
 import { fetchDocument, fetchDocumentFile } from '../lib/documents'
 import {
+  documentTopics,
   formatDocumentDate,
   statusAccent,
   topicAccent,
@@ -75,12 +76,20 @@ export function DocumentDetailPage() {
   }, [numericDocumentId, token])
 
   const relatedDocuments = useMemo(() => {
-    if (!document?.topic) {
+    if (!document) {
+      return []
+    }
+
+    const currentTopics = documentTopics(document)
+    if (currentTopics.length === 0) {
       return []
     }
 
     return documents
-      .filter((item) => item.id !== document.id && item.topic === document.topic)
+      .filter((item) =>
+        item.id !== document.id &&
+        documentTopics(item).some((topic) => currentTopics.includes(topic)),
+      )
       .slice(0, 3)
   }, [document, documents])
 
@@ -103,6 +112,7 @@ export function DocumentDetailPage() {
   }
 
   const isPdf = previewContentType?.includes('pdf') ?? false
+  const topics = documentTopics(document)
 
   return (
     <div className="space-y-6">
@@ -126,9 +136,20 @@ export function DocumentDetailPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <span className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(document.topic)}`}>
-              {document.topic ?? 'Uncategorized'}
-            </span>
+            {topics.length > 0 ? (
+              topics.map((topic) => (
+                <span
+                  key={topic}
+                  className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(topic)}`}
+                >
+                  {topic}
+                </span>
+              ))
+            ) : (
+              <span className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${topicAccent(null)}`}>
+                Uncategorized
+              </span>
+            )}
             <span className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${statusAccent(document.status)}`}>
               {document.status ?? 'No status'}
             </span>
@@ -201,9 +222,16 @@ export function DocumentDetailPage() {
                     className="block rounded-2xl border border-rke-border/70 px-4 py-4 transition hover:border-rke-teal/30 hover:bg-rke-surface/40"
                     to={`/app/documents/${item.id}`}
                   >
-                    <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ring-1 ${topicAccent(item.topic)}`}>
-                      {item.topic ?? 'Uncategorized'}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {documentTopics(item).map((topic) => (
+                        <span
+                          key={topic}
+                          className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ring-1 ${topicAccent(topic)}`}
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
                     <p className="mt-3 font-semibold text-rke-navy">{item.title}</p>
                     <p className="mt-2 text-xs text-rke-copy">
                       {item.authors[0] ?? 'Unknown author'} {' - '} {formatDocumentDate(item.createdAt)}

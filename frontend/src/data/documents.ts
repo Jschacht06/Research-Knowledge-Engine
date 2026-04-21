@@ -5,6 +5,7 @@ export type TopicName =
   | 'Sensors'
   | 'Energy Systems'
   | 'Control Systems'
+  
 
 export type DocumentStatus =
   | 'Goedgekeurd'
@@ -19,6 +20,7 @@ export type DocumentRecord = {
   title: string
   filename: string
   topic: string | null
+  topics: TopicName[]
   status: DocumentStatus | null
   abstract: string | null
   authors: string[]
@@ -29,7 +31,7 @@ export type DocumentRecord = {
 export type UploadDocumentPayload = {
   file: File
   title: string
-  topic: string
+  topics: TopicName[]
   status: DocumentStatus
   abstract: string
   authors: string[]
@@ -39,7 +41,7 @@ export type UploadDocumentPayload = {
 export type UpdateDocumentPayload = {
   file?: File | null
   title: string
-  topic: string
+  topics: TopicName[]
   status: DocumentStatus
   abstract: string
   authors: string[]

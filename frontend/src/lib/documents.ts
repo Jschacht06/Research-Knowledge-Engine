@@ -1,6 +1,7 @@
 import type {
   DocumentRecord,
   DocumentStatus,
+  TopicName,
   UpdateDocumentPayload,
   UploadDocumentPayload,
 } from '../data/documents'
@@ -11,6 +12,7 @@ type DocumentApiResponse = {
   title: string
   filename: string
   topic: string | null
+  topics?: string[]
   status: string | null
   abstract: string | null
   authors: string[]
@@ -25,12 +27,31 @@ function normalizeStatus(status: string | null): DocumentStatus | null {
     : null
 }
 
+function normalizeTopics(topic: string | null, topics: string[] | undefined): TopicName[] {
+  const allowedTopics: TopicName[] = [
+    'Robotics',
+    'AI / Machine Learning',
+    'Mechatronics',
+    'Sensors',
+    'Energy Systems',
+    'Control Systems',
+  ]
+  const rawTopics = topics && topics.length > 0 ? topics : topic ? [topic] : []
+
+  return rawTopics.filter((item): item is TopicName =>
+    allowedTopics.includes(item as TopicName),
+  )
+}
+
 function normalizeDocument(document: DocumentApiResponse): DocumentRecord {
+  const normalizedTopics = normalizeTopics(document.topic, document.topics)
+
   return {
     id: document.id,
     title: document.title,
     filename: document.filename,
-    topic: document.topic,
+    topic: normalizedTopics[0] ?? document.topic,
+    topics: normalizedTopics,
     status: normalizeStatus(document.status),
     abstract: document.abstract,
     authors: document.authors,
@@ -59,7 +80,8 @@ export async function uploadDocument(token: string, payload: UploadDocumentPaylo
   const formData = new FormData()
   formData.append('file', payload.file)
   formData.append('title', payload.title)
-  formData.append('topic', payload.topic)
+  formData.append('topic', payload.topics[0] ?? '')
+  formData.append('topics', JSON.stringify(payload.topics))
   formData.append('status', payload.status)
   formData.append('abstract', payload.abstract)
   formData.append('authors', JSON.stringify(payload.authors))
@@ -84,7 +106,8 @@ export async function updateDocument(
     formData.append('file', payload.file)
   }
   formData.append('title', payload.title)
-  formData.append('topic', payload.topic)
+  formData.append('topic', payload.topics[0] ?? '')
+  formData.append('topics', JSON.stringify(payload.topics))
   formData.append('status', payload.status)
   formData.append('abstract', payload.abstract)
   formData.append('authors', JSON.stringify(payload.authors))

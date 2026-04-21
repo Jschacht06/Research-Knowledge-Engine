@@ -44,6 +44,12 @@ def on_startup():
     with engine.begin() as conn:
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS title VARCHAR(255)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topic VARCHAR(120)"))
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topics JSONB DEFAULT '[]'::jsonb"))
+        conn.execute(
+            sql_text(
+                "UPDATE documents SET topics = jsonb_build_array(topic) WHERE topic IS NOT NULL AND topics = '[]'::jsonb"
+            )
+        )
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS status VARCHAR(40)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS abstract TEXT"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS authors JSONB DEFAULT '[]'::jsonb"))
@@ -73,6 +79,7 @@ class DocumentOut(BaseModel):
     title: str
     filename: str
     topic: str | None = None
+    topics: list[str]
     status: str | None = None
     abstract: str | None = None
     authors: list[str]
@@ -95,9 +102,37 @@ class ChatOut(BaseModel):
 def serialize_document(document: Document) -> Document:
     if not document.title:
         document.title = document.filename
+    if not document.topics:
+        document.topics = [document.topic] if document.topic else []
     document.authors = document.authors or []
     document.keywords = document.keywords or []
     return document
+
+
+def parse_topics(raw_topics: str, fallback_topic: str = "") -> list[str]:
+    allowed_topics = {
+        "Robotics",
+        "AI / Machine Learning",
+        "Mechatronics",
+        "Sensors",
+        "Energy Systems",
+        "Control Systems",
+    }
+
+    try:
+        parsed_topics = [item.strip() for item in json.loads(raw_topics) if str(item).strip()]
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Topics must be a valid JSON array") from exc
+
+    if not parsed_topics and fallback_topic.strip():
+        parsed_topics = [fallback_topic.strip()]
+
+    unique_topics = list(dict.fromkeys(parsed_topics))
+    invalid_topics = [topic for topic in unique_topics if topic not in allowed_topics]
+    if invalid_topics:
+        raise HTTPException(status_code=400, detail="Please select valid research topics")
+
+    return unique_topics
 
 
 @app.get("/health")
@@ -147,6 +182,7 @@ async def upload_document(
     file: UploadFile = File(...),
     title: str = Form(...),
     topic: str = Form(""),
+    topics: str = Form("[]"),
     status: str = Form(""),
     abstract: str = Form(""),
     authors: str = Form("[]"),
@@ -175,6 +211,10 @@ async def upload_document(
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=400, detail="Authors and keywords must be valid JSON arrays") from exc
 
+    parsed_topics = parse_topics(topics, topic)
+    if not parsed_topics:
+        raise HTTPException(status_code=400, detail="Please select at least one research topic")
+
     doc_uuid = str(uuid.uuid4())
     safe_name = f"{doc_uuid}_{Path(filename).name}"
     storage_path = Path(settings.storage_dir) / safe_name
@@ -185,7 +225,8 @@ async def upload_document(
     doc = Document(
         filename=Path(filename).name,
         title=cleaned_title,
-        topic=topic.strip() or None,
+        topic=parsed_topics[0],
+        topics=parsed_topics,
         status=cleaned_status,
         abstract=abstract.strip() or None,
         authors=parsed_authors,
@@ -215,6 +256,7 @@ async def update_document(
     document_id: int,
     title: str = Form(...),
     topic: str = Form(""),
+    topics: str = Form("[]"),
     status: str = Form(""),
     abstract: str = Form(""),
     authors: str = Form("[]"),
@@ -246,8 +288,13 @@ async def update_document(
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=400, detail="Authors and keywords must be valid JSON arrays") from exc
 
+    parsed_topics = parse_topics(topics, topic)
+    if not parsed_topics:
+        raise HTTPException(status_code=400, detail="Please select at least one research topic")
+
     document.title = cleaned_title
-    document.topic = topic.strip() or None
+    document.topic = parsed_topics[0]
+    document.topics = parsed_topics
     document.status = cleaned_status
     document.abstract = abstract.strip() or None
     document.authors = parsed_authors

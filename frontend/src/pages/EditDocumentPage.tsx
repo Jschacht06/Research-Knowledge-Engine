@@ -21,7 +21,7 @@ export function EditDocumentPage() {
   const [title, setTitle] = useState('')
   const [authorInput, setAuthorInput] = useState('')
   const [authors, setAuthors] = useState<string[]>([])
-  const [topic, setTopic] = useState<TopicName | ''>('')
+  const [topics, setTopics] = useState<TopicName[]>([])
   const [status, setStatus] = useState<DocumentStatus | ''>('')
   const [abstract, setAbstract] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
@@ -53,7 +53,7 @@ export function EditDocumentPage() {
           setDocument(nextDocument)
           setTitle(nextDocument.title)
           setAuthors(nextDocument.authors)
-          setTopic((nextDocument.topic as TopicName | null) ?? '')
+          setTopics(nextDocument.topics)
           setStatus(nextDocument.status ?? '')
           setAbstract(nextDocument.abstract ?? '')
           setKeywords(nextDocument.keywords)
@@ -113,6 +113,14 @@ export function EditDocumentPage() {
     setKeywords((current) => current.filter((item) => item !== keyword))
   }
 
+  function toggleTopic(topic: TopicName) {
+    setTopics((current) =>
+      current.includes(topic)
+        ? current.filter((item) => item !== topic)
+        : [...current, topic],
+    )
+  }
+
   function handleFileSelection(file: File | null) {
     if (!file) {
       return
@@ -149,8 +157,8 @@ export function EditDocumentPage() {
       return
     }
 
-    if (!topic) {
-      setErrorMessage('Please select a research topic.')
+    if (topics.length === 0) {
+      setErrorMessage('Please select at least one research topic.')
       return
     }
 
@@ -167,7 +175,7 @@ export function EditDocumentPage() {
       const updatedDocument = await updateDocument(token, document.id, {
         file: selectedFile,
         title: title.trim(),
-        topic,
+        topics,
         status,
         abstract: abstract.trim(),
         authors,
@@ -311,18 +319,18 @@ export function EditDocumentPage() {
 
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.08em] text-rke-navy">
-            Research Focus / Topic
+            Research Focus / Topics
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {topicOptions.map((option) => (
               <button
                 key={option}
                 className={`rounded-2xl border px-4 py-4 text-sm font-medium transition ${
-                  topic === option
+                  topics.includes(option)
                     ? 'border-rke-teal bg-rke-teal text-white'
                     : 'border-rke-border text-rke-copy hover:border-rke-teal/40 hover:text-rke-navy'
                 }`}
-                onClick={() => setTopic(option)}
+                onClick={() => toggleTopic(option)}
                 type="button"
               >
                 {option}

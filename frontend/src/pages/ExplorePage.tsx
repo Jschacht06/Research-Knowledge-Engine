@@ -4,15 +4,22 @@ import { useSearchParams } from 'react-router-dom'
 import { DocumentCard } from '../components/ui/DocumentCard'
 import { EmptyState } from '../components/ui/EmptyState'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { type SortOrder, topicOptions, type TopicName } from '../data/documents'
+import {
+  documentStatusOptions,
+  type DocumentStatus,
+  type SortOrder,
+  topicOptions,
+  type TopicName,
+} from '../data/documents'
 import { useDocuments } from '../hooks/useDocuments'
-import { filterDocuments, searchDocuments } from '../utils/documents'
+import { filterDocuments, searchDocuments, statusAccent } from '../utils/documents'
 
 export function ExplorePage() {
   const { documents, errorMessage, isLoading } = useDocuments()
   const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q')?.trim() ?? ''
   const [selectedTopics, setSelectedTopics] = useState<TopicName[]>([])
+  const [selectedStatuses, setSelectedStatuses] = useState<DocumentStatus[]>([])
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [authorQuery, setAuthorQuery] = useState('')
@@ -23,13 +30,14 @@ export function ExplorePage() {
       const scopedDocuments = searchDocuments(documents, searchQuery)
       return filterDocuments(scopedDocuments, {
         selectedTopics,
+        selectedStatuses,
         fromDate,
         toDate,
         authorQuery,
         sortOrder,
       })
     },
-    [authorQuery, documents, fromDate, searchQuery, selectedTopics, sortOrder, toDate],
+    [authorQuery, documents, fromDate, searchQuery, selectedStatuses, selectedTopics, sortOrder, toDate],
   )
 
   function toggleTopic(topic: TopicName) {
@@ -40,8 +48,17 @@ export function ExplorePage() {
     )
   }
 
+  function toggleStatus(status: DocumentStatus) {
+    setSelectedStatuses((current) =>
+      current.includes(status)
+        ? current.filter((item) => item !== status)
+        : [...current, status],
+    )
+  }
+
   function resetFilters() {
     setSelectedTopics([])
+    setSelectedStatuses([])
     setFromDate('')
     setToDate('')
     setAuthorQuery('')
@@ -78,6 +95,30 @@ export function ExplorePage() {
                   type="checkbox"
                 />
                 {topic}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-rke-copy">
+            Document State
+          </h3>
+          <div className="mt-4 grid gap-3">
+            {documentStatusOptions.map((status) => (
+              <label
+                key={status}
+                className="flex items-center gap-3 rounded-2xl border border-rke-border/70 px-3 py-3 text-sm text-rke-copy transition hover:border-rke-teal/40 hover:bg-rke-surface"
+              >
+                <input
+                  checked={selectedStatuses.includes(status)}
+                  className="size-4 accent-rke-teal"
+                  onChange={() => toggleStatus(status)}
+                  type="checkbox"
+                />
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusAccent(status)}`}>
+                  {status}
+                </span>
               </label>
             ))}
           </div>

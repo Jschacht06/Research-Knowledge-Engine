@@ -7,14 +7,14 @@ import { SectionHeading } from '../components/ui/SectionHeading'
 import { StatCard } from '../components/ui/StatCard'
 import { useAuth } from '../hooks/useAuth'
 import { useDocuments } from '../hooks/useDocuments'
-import { searchDocuments } from '../utils/documents'
+import { documentTopics, searchDocuments } from '../utils/documents'
 
 export function DashboardPage() {
   const { user } = useAuth()
   const { documents, errorMessage, isLoading } = useDocuments()
   const [searchParams] = useSearchParams()
   const searchQuery = searchParams.get('q')?.trim() ?? ''
-  const uniqueTopics = new Set(documents.map((document) => document.topic).filter(Boolean))
+  const uniqueTopics = new Set(documents.flatMap((document) => documentTopics(document)))
   const recentDocuments = useMemo(
     () => searchDocuments(documents, searchQuery).slice(0, 3),
     [documents, searchQuery],
