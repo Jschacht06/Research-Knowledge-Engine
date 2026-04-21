@@ -132,6 +132,13 @@ export async function updateDocument(
   return normalizeDocument(response)
 }
 
+export async function deleteDocument(token: string, documentId: number) {
+  await apiRequest<{ ok: boolean }>(`/documents/${documentId}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
 export async function fetchDocumentFile(token: string, documentId: number) {
   const response = await fetch(
     `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/documents/${documentId}/file`,

@@ -1,19 +1,52 @@
-import { useMemo } from 'react'
+import { Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState } from '../components/ui/EmptyState'
 import { DocumentCard } from '../components/ui/DocumentCard'
 import { SectionHeading } from '../components/ui/SectionHeading'
+import { useAuth } from '../hooks/useAuth'
 import { useDocuments } from '../hooks/useDocuments'
+import { deleteDocument } from '../lib/documents'
 import { searchDocuments } from '../utils/documents'
 
 export function MyDocumentsPage() {
-  const { documents, errorMessage, isLoading } = useDocuments('mine')
+  const { token } = useAuth()
+  const { documents, errorMessage, isLoading, setDocuments } = useDocuments('mine')
   const [searchParams] = useSearchParams()
+  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null)
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null)
   const searchQuery = searchParams.get('q')?.trim() ?? ''
   const filteredDocuments = useMemo(
     () => searchDocuments(documents, searchQuery),
     [documents, searchQuery],
   )
+
+  async function handleDeleteDocument(documentId: number, title: string) {
+    if (!token || deletingDocumentId !== null) {
+      return
+    }
+
+    const shouldDelete = window.confirm(`Delete "${title}"? This cannot be undone.`)
+    if (!shouldDelete) {
+      return
+    }
+
+    setDeletingDocumentId(documentId)
+    setDeleteErrorMessage(null)
+
+    try {
+      await deleteDocument(token, documentId)
+      setDocuments((currentDocuments) =>
+        currentDocuments.filter((document) => document.id !== documentId),
+      )
+    } catch (error) {
+      setDeleteErrorMessage(
+        error instanceof Error ? error.message : 'Could not delete the document.',
+      )
+    } finally {
+      setDeletingDocumentId(null)
+    }
+  }
 
   return (
     <section className="space-y-6">
@@ -26,6 +59,12 @@ export function MyDocumentsPage() {
         }
         title="My documents"
       />
+
+      {deleteErrorMessage && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {deleteErrorMessage}
+        </div>
+      )}
 
       {errorMessage ? (
         <EmptyState
@@ -40,7 +79,18 @@ export function MyDocumentsPage() {
       ) : filteredDocuments.length > 0 ? (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filteredDocuments.map((document) => (
-            <DocumentCard key={document.id} compact document={document} />
+            <div key={document.id} className="relative">
+              <button
+                className="absolute right-4 top-4 z-10 inline-flex size-10 items-center justify-center rounded-2xl border border-red-200 bg-white text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={deletingDocumentId !== null}
+                onClick={() => void handleDeleteDocument(document.id, document.title)}
+                title="Delete document"
+                type="button"
+              >
+                <Trash2 size={17} />
+              </button>
+              <DocumentCard compact document={document} />
+            </div>
           ))}
         </div>
       ) : (

@@ -14,7 +14,7 @@ from sqlalchemy import text as sql_text
 
 from .config import settings
 from .db import Base, engine, get_db
-from .models import User, Document, DocumentChunk
+from .models import User, Document, DocumentChunk, ChatConversation, ChatConversationMessage
 from .security import (
     hash_password,
     verify_password,
@@ -23,7 +23,7 @@ from .security import (
     get_current_user,
 )
 from .extractors import extract_text
-from .rag import chunk_text, embed_texts, retrieve_top_chunks, chat_answer
+from .rag import chunk_text, embed_texts, retrieve_top_chunks, chat_answer, conversational_answer
 
 app = FastAPI(title="Research KB API", version="0.2")
 
@@ -98,6 +98,29 @@ class ChatIn(BaseModel):
 class ChatOut(BaseModel):
     answer: str
     sources: list[dict]
+
+
+class ChatConversationOut(BaseModel):
+    id: int
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        from_attributes = True
+
+
+class ChatConversationUpdateIn(BaseModel):
+    title: str
+
+
+class ChatConversationMessageOut(BaseModel):
+    id: int
+    role: str
+    content: str
+    sources: list[dict]
+    created_at: datetime
+    class Config:
+        from_attributes = True
 
 
 def serialize_document(document: Document) -> Document:
@@ -335,6 +358,30 @@ async def update_document(
     return document
 
 
+@app.delete("/documents/{document_id}")
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.owner_id == current_user.id)
+        .first()
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    stored_path = Path(document.filepath)
+    db.delete(document)
+    db.commit()
+
+    if stored_path.exists():
+        stored_path.unlink()
+
+    return {"ok": True}
+
+
 @app.get("/documents", response_model=list[DocumentOut])
 def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     documents = (
@@ -403,11 +450,218 @@ def get_document_file(
 
 # -------- CHAT --------
 
+def is_conversational_message(message: str) -> bool:
+    normalized = message.strip().lower()
+    conversational_messages = {
+        "hi",
+        "hii",
+        "hello",
+        "hey",
+        "yo",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "thanks",
+        "thank you",
+        "ok",
+        "okay",
+    }
+    conversational_prefixes = (
+        "how are you",
+        "who are you",
+        "what can you do",
+        "can you help",
+        "help me",
+    )
+
+    return (
+        normalized in conversational_messages
+        or any(normalized.startswith(prefix) for prefix in conversational_prefixes)
+    )
+
+
+def get_owned_conversation(db: Session, conversation_id: int, user_id: int) -> ChatConversation:
+    conversation = (
+        db.query(ChatConversation)
+        .filter(ChatConversation.id == conversation_id, ChatConversation.owner_id == user_id)
+        .first()
+    )
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conversation
+
+
+@app.get("/chat/conversations", response_model=list[ChatConversationOut])
+def list_chat_conversations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return (
+        db.query(ChatConversation)
+        .filter(ChatConversation.owner_id == current_user.id)
+        .order_by(ChatConversation.updated_at.desc(), ChatConversation.id.desc())
+        .all()
+    )
+
+
+@app.post("/chat/conversations", response_model=ChatConversationOut)
+def create_chat_conversation(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    conversation = ChatConversation(owner_id=current_user.id, title="New conversation")
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return conversation
+
+
+@app.put("/chat/conversations/{conversation_id}", response_model=ChatConversationOut)
+def update_chat_conversation(
+    conversation_id: int,
+    payload: ChatConversationUpdateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    conversation = get_owned_conversation(db, conversation_id, current_user.id)
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Conversation title is required")
+
+    conversation.title = title[:255]
+    conversation.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(conversation)
+    return conversation
+
+
+@app.delete("/chat/conversations/{conversation_id}")
+def delete_chat_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    conversation = get_owned_conversation(db, conversation_id, current_user.id)
+    db.delete(conversation)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/chat/conversations/{conversation_id}/messages", response_model=list[ChatConversationMessageOut])
+def list_chat_messages(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_owned_conversation(db, conversation_id, current_user.id)
+    return (
+        db.query(ChatConversationMessage)
+        .filter(ChatConversationMessage.conversation_id == conversation_id)
+        .order_by(ChatConversationMessage.id.asc())
+        .all()
+    )
+
+
+@app.post("/chat/conversations/{conversation_id}/messages", response_model=ChatConversationMessageOut)
+async def ask_chat_in_conversation(
+    conversation_id: int,
+    payload: ChatIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    conversation = get_owned_conversation(db, conversation_id, current_user.id)
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question required")
+
+    recent_history = (
+        db.query(ChatConversationMessage)
+        .filter(ChatConversationMessage.conversation_id == conversation.id)
+        .order_by(ChatConversationMessage.id.desc())
+        .limit(10)
+        .all()
+    )
+    conversation_history = [
+        {"role": message.role, "content": message.content}
+        for message in reversed(recent_history)
+    ]
+
+    user_message = ChatConversationMessage(
+        conversation_id=conversation.id,
+        role="user",
+        content=question,
+        sources=[],
+    )
+    db.add(user_message)
+
+    if conversation.title == "New conversation":
+        conversation.title = question[:70]
+    conversation.updated_at = datetime.utcnow()
+
+    if is_conversational_message(question):
+        answer = await conversational_answer(question, conversation_history)
+        assistant_message = ChatConversationMessage(
+            conversation_id=conversation.id,
+            role="assistant",
+            content=answer,
+            sources=[],
+        )
+        db.add(assistant_message)
+        db.commit()
+        db.refresh(assistant_message)
+        return assistant_message
+
+    retrieval_query = "\n".join(
+        [message["content"] for message in conversation_history[-4:]] + [question]
+    )
+    qvec = (await embed_texts([retrieval_query]))[0]
+    chunks = retrieve_top_chunks(db, qvec, top_k=payload.top_k)
+
+    sources = []
+    source_ids = set()
+    context_blocks = []
+    for ch in chunks:
+        if ch.document_id not in source_ids:
+            source_ids.add(ch.document_id)
+            sources.append(
+                {
+                    "doc_id": ch.document_id,
+                    "title": ch.document.title or ch.document.filename,
+                    "filename": ch.document.filename,
+                }
+            )
+        context_blocks.append(
+            {
+                "doc_id": ch.document_id,
+                "chunk_id": ch.id,
+                "content": ch.content,
+                "filename": ch.document.filename,
+                "title": ch.document.title or ch.document.filename,
+            }
+        )
+
+    answer = await chat_answer(question, context_blocks, conversation_history)
+    assistant_message = ChatConversationMessage(
+        conversation_id=conversation.id,
+        role="assistant",
+        content=answer,
+        sources=sources,
+    )
+    db.add(assistant_message)
+    db.commit()
+    db.refresh(assistant_message)
+    return assistant_message
+
+
 @app.post("/chat/ask", response_model=ChatOut)
 async def ask_chat(payload: ChatIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     question = payload.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question required")
+
+    if is_conversational_message(question):
+        answer = await conversational_answer(question)
+        return ChatOut(answer=answer, sources=[])
 
     qvec = (await embed_texts([question]))[0]
     chunks = retrieve_top_chunks(db, qvec, top_k=payload.top_k)

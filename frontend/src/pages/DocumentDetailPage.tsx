@@ -1,12 +1,12 @@
-import { CalendarDays, Download, FileText, User2 } from 'lucide-react'
+import { CalendarDays, Download, FileText, Trash2, User2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { EmptyState } from '../components/ui/EmptyState'
 import { SectionHeading } from '../components/ui/SectionHeading'
 import type { DocumentRecord } from '../data/documents'
 import { useAuth } from '../hooks/useAuth'
 import { useDocuments } from '../hooks/useDocuments'
-import { fetchDocument, fetchDocumentFile } from '../lib/documents'
+import { deleteDocument, fetchDocument, fetchDocumentFile } from '../lib/documents'
 import {
   documentTopics,
   formatDocumentDate,
@@ -16,13 +16,16 @@ import {
 
 export function DocumentDetailPage() {
   const { documentId } = useParams()
+  const navigate = useNavigate()
   const { token, user } = useAuth()
   const { documents } = useDocuments()
   const [document, setDocument] = useState<DocumentRecord | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewContentType, setPreviewContentType] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null)
 
   const numericDocumentId = Number(documentId)
 
@@ -114,6 +117,30 @@ export function DocumentDetailPage() {
   const isPdf = previewContentType?.includes('pdf') ?? false
   const topics = documentTopics(document)
 
+  async function handleDeleteDocument() {
+    if (!token || !document || isDeleting) {
+      return
+    }
+
+    const shouldDelete = window.confirm(`Delete "${document.title}"? This cannot be undone.`)
+    if (!shouldDelete) {
+      return
+    }
+
+    setIsDeleting(true)
+    setDeleteErrorMessage(null)
+
+    try {
+      await deleteDocument(token, document.id)
+      navigate('/app/documents')
+    } catch (error) {
+      setDeleteErrorMessage(
+        error instanceof Error ? error.message : 'Could not delete the document.',
+      )
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 text-xs text-rke-copy">
@@ -126,14 +153,29 @@ export function DocumentDetailPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="rounded-[32px] border border-rke-border/80 bg-white p-8 shadow-[0_24px_70px_rgba(24,46,75,0.08)]">
+          {deleteErrorMessage && (
+            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {deleteErrorMessage}
+            </div>
+          )}
+
           {document.ownerId === user?.id && (
-            <div className="mb-5 flex justify-end">
+            <div className="mb-5 flex flex-wrap justify-end gap-3">
               <Link
                 className="inline-flex items-center justify-center rounded-2xl border border-rke-teal px-4 py-3 text-sm font-semibold text-rke-teal transition hover:bg-rke-teal hover:text-white"
                 to={`/app/documents/${document.id}/edit`}
               >
                 Edit document
               </Link>
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isDeleting}
+                onClick={() => void handleDeleteDocument()}
+                type="button"
+              >
+                <Trash2 size={16} />
+                {isDeleting ? 'Deleting...' : 'Delete document'}
+              </button>
             </div>
           )}
 

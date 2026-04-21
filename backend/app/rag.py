@@ -33,15 +33,21 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
     return vectors
 
 
-async def chat_answer(question: str, context_blocks: list[dict]) -> str:
+async def chat_answer(
+    question: str,
+    context_blocks: list[dict],
+    conversation_history: list[dict] | None = None,
+) -> str:
     # Keep source IDs out of the prompt text so the model does not print raw chunk references.
     context_text = "\n\n".join(
         [f"[source title={b['title']} file={b['filename']}]\n{b['content']}" for b in context_blocks]
     )
 
     system = (
-        "You are an assistant for a research knowledge base.\n"
+        "You are a helpful, conversational assistant for a research knowledge base.\n"
         "Answer in English.\n"
+        "Write naturally and clearly, similar to ChatGPT: friendly, direct, and useful.\n"
+        "Use short paragraphs or bullets when that makes the answer easier to read.\n"
         "You must use only the provided database sources.\n"
         "Do not use outside knowledge, prior knowledge, web knowledge, or general background knowledge.\n"
         "If the provided sources do not explicitly contain the answer, say that the database does not contain enough information.\n"
@@ -49,8 +55,54 @@ async def chat_answer(question: str, context_blocks: list[dict]) -> str:
         "Only refer to facts that are present in the provided source text.\n"
         "Do not include a Sources section, source list, raw document IDs, or chunk IDs in your answer."
     )
+    history_text = "\n".join(
+        [
+            f"{message['role'].upper()}: {message['content']}"
+            for message in (conversation_history or [])
+        ]
+    )
 
-    prompt = f"{system}\n\nSOURCES:\n{context_text}\n\nQUESTION:\n{question}\n\nRESPONSE:"
+    prompt = (
+        f"{system}\n\n"
+        f"CONVERSATION HISTORY:\n{history_text or 'No previous messages.'}\n\n"
+        f"SOURCES:\n{context_text}\n\n"
+        f"QUESTION:\n{question}\n\n"
+        "RESPONSE:"
+    )
+
+    url = f"{settings.ollama_base_url}/api/generate"
+    async with httpx.AsyncClient(timeout=120) as client:
+        r = await client.post(
+            url,
+            json={"model": settings.ollama_chat_model, "prompt": prompt, "stream": False},
+        )
+        r.raise_for_status()
+        return r.json().get("response", "").strip()
+
+
+async def conversational_answer(
+    question: str,
+    conversation_history: list[dict] | None = None,
+) -> str:
+    history_text = "\n".join(
+        [
+            f"{message['role'].upper()}: {message['content']}"
+            for message in (conversation_history or [])
+        ]
+    )
+    system = (
+        "You are a friendly assistant inside the Research Knowledge Engine.\n"
+        "Answer naturally, like ChatGPT would, but keep it concise.\n"
+        "This message is conversational and does not require document sources.\n"
+        "Do not mention sources, documents, citations, or database limitations unless the user asks about research documents.\n"
+        "If helpful, invite the user to ask a research question about the uploaded knowledge base."
+    )
+    prompt = (
+        f"{system}\n\n"
+        f"CONVERSATION HISTORY:\n{history_text or 'No previous messages.'}\n\n"
+        f"USER MESSAGE:\n{question}\n\n"
+        "RESPONSE:"
+    )
 
     url = f"{settings.ollama_base_url}/api/generate"
     async with httpx.AsyncClient(timeout=120) as client:
