@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, LogOut, Search, X } from 'lucide-react'
+import { ChevronDown, LogOut, Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
@@ -109,6 +109,9 @@ export function WorkspaceSearchBar() {
         </form>
 
         <div className="flex items-center gap-4">
+        {/*
+          Notifications are hidden for now because the feature is not wired yet.
+          Restore this button when notification data is available.
           <button
             className="relative grid size-11 place-items-center rounded-2xl border border-rke-border bg-white text-rke-copy transition hover:border-rke-teal hover:text-rke-teal"
             type="button"
@@ -116,6 +119,7 @@ export function WorkspaceSearchBar() {
             <Bell size={18} />
             <span className="absolute right-3 top-3 size-2 rounded-full bg-rose-500" />
           </button>
+        */}
 
           <div className="relative" ref={menuRef}>
             <button

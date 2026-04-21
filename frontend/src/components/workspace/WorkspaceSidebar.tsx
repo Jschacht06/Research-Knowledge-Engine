@@ -37,7 +37,7 @@ export function WorkspaceSidebar() {
 
   return (
     <aside className="flex h-full flex-col border-b border-rke-border/80 bg-white px-4 py-5 lg:border-b-0 lg:border-r">
-      <AppLogo compact to="/" />
+      <AppLogo compact to="/app/dashboard" />
 
       <div className="mt-8 flex items-center gap-3 rounded-[28px] border border-rke-border/70 bg-rke-surface/60 p-4">
         <div className="grid size-12 place-items-center rounded-2xl bg-rke-teal font-bold text-white">
@@ -76,8 +76,6 @@ export function WorkspaceSidebar() {
         <LogOut size={18} />
         Log out
       </button>
-
-      <p className="mt-4 text-xs text-slate-400">Manage cookies or opt out</p>
     </aside>
   )
 }
