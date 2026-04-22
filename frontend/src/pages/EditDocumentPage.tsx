@@ -1,9 +1,11 @@
-import { ArrowLeft, FileUp, X } from 'lucide-react'
+import { ArrowLeft, FileUp, Plus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { DocumentRecord, DocumentStatus, TopicName } from '../data/documents'
-import { documentStatusOptions, topicOptions } from '../data/documents'
+import { documentStatusOptions } from '../data/documents'
+import { TopicPickerDialog } from '../components/ui/TopicPickerDialog'
 import { useAuth } from '../hooks/useAuth'
+import { useDocuments } from '../hooks/useDocuments'
 import { fetchDocument, updateDocument } from '../lib/documents'
 import { ApiError } from '../lib/api'
 import { EmptyState } from '../components/ui/EmptyState'
@@ -16,12 +18,14 @@ export function EditDocumentPage() {
   const { documentId } = useParams()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { token, user } = useAuth()
+  const { documents } = useDocuments()
   const [document, setDocument] = useState<DocumentRecord | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [title, setTitle] = useState('')
   const [authorInput, setAuthorInput] = useState('')
   const [authors, setAuthors] = useState<string[]>([])
   const [topics, setTopics] = useState<TopicName[]>([])
+  const [isTopicPickerOpen, setIsTopicPickerOpen] = useState(false)
   const [status, setStatus] = useState<DocumentStatus | ''>('')
   const [abstract, setAbstract] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
@@ -30,6 +34,10 @@ export function EditDocumentPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const availableTopics = useMemo(
+    () => Array.from(new Set([...documents.flatMap((item) => item.topics), ...topics])).sort(),
+    [documents, topics],
+  )
 
   const numericDocumentId = Number(documentId)
 
@@ -217,6 +225,14 @@ export function EditDocumentPage() {
 
   return (
     <section className="mx-auto max-w-3xl space-y-6">
+      <TopicPickerDialog
+        availableTopics={availableTopics}
+        isOpen={isTopicPickerOpen}
+        onChange={setTopics}
+        onClose={() => setIsTopicPickerOpen(false)}
+        selectedTopics={topics}
+      />
+
       <Link
         className="inline-flex items-center gap-2 text-sm font-semibold text-rke-teal transition hover:text-rke-navy"
         to={`/app/documents/${document.id}`}
@@ -327,22 +343,33 @@ export function EditDocumentPage() {
           <p className="text-xs font-bold uppercase tracking-[0.08em] text-rke-navy">
             Research Focus / Topics
           </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {topicOptions.map((option) => (
-              <button
-                key={option}
-                className={`rounded-2xl border px-4 py-4 text-sm font-medium transition ${
-                  topics.includes(option)
-                    ? 'border-rke-teal bg-rke-teal text-white'
-                    : 'border-rke-border text-rke-copy hover:border-rke-teal/40 hover:text-rke-navy'
-                }`}
-                onClick={() => toggleTopic(option)}
-                type="button"
-              >
-                {option}
-              </button>
-            ))}
-          </div>
+          <button
+            className="mt-3 inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-rke-teal px-5 text-sm font-semibold text-white transition hover:brightness-105"
+            onClick={() => setIsTopicPickerOpen(true)}
+            type="button"
+          >
+            <Plus size={17} />
+            Add topics
+          </button>
+          {topics.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {topics.map((topic) => (
+                <span
+                  key={topic}
+                  className="inline-flex items-center gap-2 rounded-full bg-rke-teal-soft px-3 py-2 text-sm text-rke-navy"
+                >
+                  {topic}
+                  <button
+                    className="text-rke-copy transition hover:text-rke-navy"
+                    onClick={() => toggleTopic(topic)}
+                    type="button"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>

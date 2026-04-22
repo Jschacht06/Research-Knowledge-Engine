@@ -8,7 +8,6 @@ import {
   documentStatusOptions,
   type DocumentStatus,
   type SortOrder,
-  topicOptions,
   type TopicName,
 } from '../data/documents'
 import { useDocuments } from '../hooks/useDocuments'
@@ -24,6 +23,10 @@ export function ExplorePage() {
   const [toDate, setToDate] = useState('')
   const [authorQuery, setAuthorQuery] = useState('')
   const [sortOrder, setSortOrder] = useState<SortOrder>('Newest')
+  const availableTopics = useMemo(
+    () => Array.from(new Set(documents.flatMap((document) => document.topics))).sort(),
+    [documents],
+  )
 
   const filteredDocuments = useMemo(
     () => {
@@ -83,7 +86,7 @@ export function ExplorePage() {
             Research Topic
           </h3>
           <div className="mt-4 grid gap-3">
-            {topicOptions.map((topic) => (
+            {availableTopics.length > 0 ? availableTopics.map((topic) => (
               <label
                 key={topic}
                 className="flex items-center gap-3 rounded-2xl border border-rke-border/70 px-3 py-3 text-sm text-rke-copy transition hover:border-rke-teal/40 hover:bg-rke-surface"
@@ -96,7 +99,11 @@ export function ExplorePage() {
                 />
                 {topic}
               </label>
-            ))}
+            )) : (
+              <p className="rounded-2xl border border-dashed border-rke-border px-4 py-4 text-sm text-rke-copy">
+                No topics available yet.
+              </p>
+            )}
           </div>
         </div>
 

@@ -15,15 +15,6 @@ ALLOWED_DOCUMENT_MIME_TYPES = {
     "application/octet-stream",
 }
 ALLOWED_DOCUMENT_STATUSES = {"Goedgekeurd", "Afgekeurd", "Aangevraagd", "Done"}
-ALLOWED_DOCUMENT_TOPICS = {
-    "Robotics",
-    "AI / Machine Learning",
-    "Mechatronics",
-    "Sensors",
-    "Energy Systems",
-    "Control Systems",
-}
-
 MAX_FILE_SIZE_MB = 25
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
@@ -197,14 +188,15 @@ class DocumentInput(BaseModel):
     @field_validator("topics")
     @classmethod
     def validate_topics(cls, value: list[str]) -> list[str]:
-        cleaned_topics = [validate_text(topic, field_name="Topic", max_length=120) for topic in value]
+        cleaned_topics = [
+            validate_plain_metadata(topic, field_name="Topic", max_length=120)
+            for topic in value
+        ]
         unique_topics = list(dict.fromkeys(cleaned_topics))
         if not unique_topics:
             raise ValueError("Please select at least one research topic")
         if len(unique_topics) > 6:
             raise ValueError("Please select 6 research topics or fewer")
-        if any(topic not in ALLOWED_DOCUMENT_TOPICS for topic in unique_topics):
-            raise ValueError("Please select valid research topics")
         return unique_topics
 
     @field_validator("status")

@@ -59,20 +59,24 @@ export function formatDocumentDate(value: string) {
 }
 
 export function topicAccent(topic: string | null) {
-  const accents: Record<TopicName, string> = {
-    Robotics: 'bg-rke-violet/15 text-rke-violet ring-rke-violet/20',
-    'AI / Machine Learning': 'bg-rke-teal-soft text-rke-teal ring-rke-teal/20',
-    Mechatronics: 'bg-rke-amber-soft text-rke-amber ring-rke-amber/25',
-    Sensors: 'bg-pink-100 text-pink-600 ring-pink-200',
-    'Energy Systems': 'bg-emerald-100 text-emerald-600 ring-emerald-200',
-    'Control Systems': 'bg-sky-100 text-sky-700 ring-sky-200',
-  }
-
-  if (!topic || !(topic in accents)) {
+  if (!topic) {
     return 'bg-slate-100 text-slate-700 ring-slate-200'
   }
 
-  return accents[topic as TopicName]
+  const accents = [
+    'bg-rke-violet/15 text-rke-violet ring-rke-violet/20',
+    'bg-rke-teal-soft text-rke-teal ring-rke-teal/20',
+    'bg-rke-amber-soft text-rke-amber ring-rke-amber/25',
+    'bg-pink-100 text-pink-600 ring-pink-200',
+    'bg-emerald-100 text-emerald-600 ring-emerald-200',
+    'bg-sky-100 text-sky-700 ring-sky-200',
+  ]
+  const accentIndex = Array.from(topic).reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  ) % accents.length
+
+  return accents[accentIndex]
 }
 
 export function documentTopics(document: DocumentRecord): TopicName[] {

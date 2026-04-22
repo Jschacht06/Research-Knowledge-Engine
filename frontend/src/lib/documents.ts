@@ -29,19 +29,11 @@ function normalizeStatus(status: string | null): DocumentStatus | null {
 }
 
 function normalizeTopics(topic: string | null, topics: string[] | undefined): TopicName[] {
-  const allowedTopics: TopicName[] = [
-    'Robotics',
-    'AI / Machine Learning',
-    'Mechatronics',
-    'Sensors',
-    'Energy Systems',
-    'Control Systems',
-  ]
   const rawTopics = topics && topics.length > 0 ? topics : topic ? [topic] : []
 
-  return rawTopics.filter((item): item is TopicName =>
-    allowedTopics.includes(item as TopicName),
-  )
+  return rawTopics
+    .map((item) => item.trim())
+    .filter((item): item is TopicName => item.length > 0)
 }
 
 function normalizeDocument(document: DocumentApiResponse): DocumentRecord {

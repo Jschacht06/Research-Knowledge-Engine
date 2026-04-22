@@ -1,11 +1,4 @@
-export type TopicName =
-  | 'Robotics'
-  | 'AI / Machine Learning'
-  | 'Mechatronics'
-  | 'Sensors'
-  | 'Energy Systems'
-  | 'Control Systems'
-  
+export type TopicName = string
 
 export type DocumentStatus =
   | 'Goedgekeurd'
@@ -48,15 +41,6 @@ export type UpdateDocumentPayload = {
   authors: string[]
   keywords: string[]
 }
-
-export const topicOptions: TopicName[] = [
-  'Robotics',
-  'AI / Machine Learning',
-  'Mechatronics',
-  'Sensors',
-  'Energy Systems',
-  'Control Systems',
-]
 
 export const documentStatusOptions: DocumentStatus[] = [
   'Goedgekeurd',
