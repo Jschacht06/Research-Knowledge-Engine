@@ -6,7 +6,7 @@ import { fetchDocuments, fetchMyDocuments } from '../lib/documents'
 type DocumentScope = 'all' | 'mine'
 
 export function useDocuments(scope: DocumentScope = 'all') {
-  const { token } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -15,7 +15,7 @@ export function useDocuments(scope: DocumentScope = 'all') {
     let cancelled = false
 
     async function loadDocuments() {
-      if (!token) {
+      if (!isAuthenticated) {
         setDocuments([])
         setIsLoading(false)
         return
@@ -27,8 +27,8 @@ export function useDocuments(scope: DocumentScope = 'all') {
       try {
         const nextDocuments =
           scope === 'mine'
-            ? await fetchMyDocuments(token)
-            : await fetchDocuments(token)
+            ? await fetchMyDocuments()
+            : await fetchDocuments()
         if (!cancelled) {
           setDocuments(nextDocuments)
         }
@@ -50,7 +50,7 @@ export function useDocuments(scope: DocumentScope = 'all') {
     return () => {
       cancelled = true
     }
-  }, [scope, token])
+  }, [isAuthenticated, scope])
 
   return {
     documents,

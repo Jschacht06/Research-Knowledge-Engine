@@ -17,7 +17,7 @@ export function EditDocumentPage() {
   const navigate = useNavigate()
   const { documentId } = useParams()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const { token, user } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { documents } = useDocuments()
   const [document, setDocument] = useState<DocumentRecord | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -42,13 +42,12 @@ export function EditDocumentPage() {
   const numericDocumentId = Number(documentId)
 
   useEffect(() => {
-    if (!token || Number.isNaN(numericDocumentId)) {
+    if (!isAuthenticated || Number.isNaN(numericDocumentId)) {
       setErrorMessage('Invalid document id.')
       setIsLoading(false)
       return
     }
 
-    const activeToken = token
     let cancelled = false
 
     async function loadDocument() {
@@ -56,7 +55,7 @@ export function EditDocumentPage() {
       setErrorMessage(null)
 
       try {
-        const nextDocument = await fetchDocument(activeToken, numericDocumentId)
+        const nextDocument = await fetchDocument(numericDocumentId)
         if (!cancelled) {
           if (nextDocument.ownerId !== user?.id) {
             setErrorMessage('You can only edit documents that you uploaded.')
@@ -90,7 +89,7 @@ export function EditDocumentPage() {
     return () => {
       cancelled = true
     }
-  }, [numericDocumentId, token, user?.id])
+  }, [isAuthenticated, numericDocumentId, user?.id])
 
   const fileLabel = useMemo(() => {
     if (selectedFile) {
@@ -156,7 +155,7 @@ export function EditDocumentPage() {
   }
 
   async function handleSave() {
-    if (!token || !document) {
+    if (!isAuthenticated || !document) {
       setErrorMessage('You must be logged in to edit a document.')
       return
     }
@@ -186,7 +185,7 @@ export function EditDocumentPage() {
     setIsSubmitting(true)
 
     try {
-      const updatedDocument = await updateDocument(token, document.id, {
+      const updatedDocument = await updateDocument(document.id, {
         file: selectedFile,
         title: title.trim(),
         topics,

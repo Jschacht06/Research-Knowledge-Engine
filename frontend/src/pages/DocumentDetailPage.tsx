@@ -20,7 +20,7 @@ import {
 export function DocumentDetailPage() {
   const { documentId } = useParams()
   const navigate = useNavigate()
-  const { token, user } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { documents } = useDocuments()
   const [document, setDocument] = useState<DocumentRecord | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -39,7 +39,7 @@ export function DocumentDetailPage() {
     let pollTimer: number | null = null
 
     async function loadDocument() {
-      if (!token || Number.isNaN(numericDocumentId)) {
+      if (!isAuthenticated || Number.isNaN(numericDocumentId)) {
         if (!cancelled) {
           setErrorMessage('Invalid document id.')
           setIsLoading(false)
@@ -51,8 +51,8 @@ export function DocumentDetailPage() {
       setErrorMessage(null)
 
       try {
-        const nextDocument = await fetchDocument(token, numericDocumentId)
-        const fileResponse = await fetchDocumentFile(token, numericDocumentId)
+        const nextDocument = await fetchDocument(numericDocumentId)
+        const fileResponse = await fetchDocumentFile(numericDocumentId)
         objectUrl = URL.createObjectURL(fileResponse.blob)
 
         if (!cancelled) {
@@ -89,7 +89,7 @@ export function DocumentDetailPage() {
         URL.revokeObjectURL(objectUrl)
       }
     }
-  }, [numericDocumentId, token])
+  }, [isAuthenticated, numericDocumentId])
 
   const relatedDocuments = useMemo(() => {
     if (!document) {
@@ -131,7 +131,7 @@ export function DocumentDetailPage() {
   const topics = documentTopics(document)
 
   async function handleDeleteDocument() {
-    if (!token || !document || isDeleting) {
+    if (!isAuthenticated || !document || isDeleting) {
       return
     }
 
@@ -139,7 +139,7 @@ export function DocumentDetailPage() {
     setDeleteErrorMessage(null)
 
     try {
-      await deleteDocument(token, document.id)
+      await deleteDocument(document.id)
       navigate('/app/documents')
     } catch (error) {
       setIsDeleteDialogOpen(false)

@@ -9,15 +9,8 @@ import {
 } from './auth-context'
 import { apiRequest } from '../lib/api'
 
-type TokenResponse = {
-  access_token: string
-  token_type: string
-}
-
-const AUTH_TOKEN_KEY = 'rke-auth-token'
-
-async function fetchCurrentUser(token: string) {
-  return apiRequest<AuthUser>('/me', { token })
+async function fetchCurrentUser() {
+  return apiRequest<AuthUser>('/me')
 }
 
 async function loginRequest(payload: LoginPayload) {
@@ -25,12 +18,18 @@ async function loginRequest(payload: LoginPayload) {
   body.set('username', payload.email)
   body.set('password', payload.password)
 
-  return apiRequest<TokenResponse>('/auth/login', {
+  return apiRequest<{ ok: boolean }>('/auth/login', {
     method: 'POST',
     body,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
+  })
+}
+
+async function logoutRequest() {
+  return apiRequest<{ ok: boolean }>('/auth/logout', {
+    method: 'POST',
   })
 }
 
@@ -50,24 +49,14 @@ async function registerRequest(payload: RegisterPayload) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(AUTH_TOKEN_KEY))
   const [isInitializing, setIsInitializing] = useState(true)
 
   useEffect(() => {
-    if (!token) {
-      startTransition(() => {
-        setUser(null)
-        setIsInitializing(false)
-      })
-      return
-    }
-
-    const activeToken = token
     let cancelled = false
 
     async function loadUser() {
       try {
-        const currentUser = await fetchCurrentUser(activeToken)
+        const currentUser = await fetchCurrentUser()
         if (!cancelled) {
           startTransition(() => {
             setUser(currentUser)
@@ -75,10 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
         }
       } catch {
-        localStorage.removeItem(AUTH_TOKEN_KEY)
         if (!cancelled) {
           startTransition(() => {
-            setToken(null)
             setUser(null)
             setIsInitializing(false)
           })
@@ -91,19 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [token])
+  }, [])
 
   async function login(payload: LoginPayload) {
     const normalizedEmail = payload.email.trim().toLowerCase()
-    const tokenResponse = await loginRequest({
+    await loginRequest({
       ...payload,
       email: normalizedEmail,
     })
 
-    localStorage.setItem(AUTH_TOKEN_KEY, tokenResponse.access_token)
-    setToken(tokenResponse.access_token)
-
-    const currentUser = await fetchCurrentUser(tokenResponse.access_token)
+    const currentUser = await fetchCurrentUser()
     startTransition(() => {
       setUser(currentUser)
     })
@@ -124,29 +108,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function refreshUser() {
-    if (!token) {
-      setUser(null)
-      return
+    try {
+      const currentUser = await fetchCurrentUser()
+      startTransition(() => {
+        setUser(currentUser)
+      })
+    } catch {
+      startTransition(() => {
+        setUser(null)
+      })
     }
-
-    const currentUser = await fetchCurrentUser(token)
-    startTransition(() => {
-      setUser(currentUser)
-    })
   }
 
-  function logout() {
-    localStorage.removeItem(AUTH_TOKEN_KEY)
-    startTransition(() => {
-      setToken(null)
-      setUser(null)
-    })
+  async function logout() {
+    try {
+      await logoutRequest()
+    } finally {
+      startTransition(() => {
+        setUser(null)
+      })
+    }
   }
 
   const value: AuthContextValue = {
     user,
-    token,
-    isAuthenticated: Boolean(user && token),
+    isAuthenticated: Boolean(user),
     isInitializing,
     login,
     register,

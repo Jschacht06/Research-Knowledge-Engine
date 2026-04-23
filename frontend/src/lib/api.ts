@@ -4,7 +4,6 @@ type RequestOptions = {
   method?: 'DELETE' | 'GET' | 'POST' | 'PUT'
   body?: BodyInit | null
   headers?: HeadersInit
-  token?: string | null
 }
 
 export class ApiError extends Error {
@@ -24,14 +23,11 @@ export function getApiBaseUrl() {
 export async function apiRequest<T>(path: string, options: RequestOptions = {}) {
   const headers = new Headers(options.headers)
 
-  if (options.token) {
-    headers.set('Authorization', `Bearer ${options.token}`)
-  }
-
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? 'GET',
     headers,
     body: options.body ?? null,
+    credentials: 'include',
   })
 
   if (!response.ok) {

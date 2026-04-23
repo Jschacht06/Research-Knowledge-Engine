@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     storage_dir: str = "/data/files"
     frontend_origins: str = "http://localhost:5173,http://localhost:3000"
     allowed_email_domains: str
+    auth_cookie_name: str = "rke_session"
+    auth_cookie_secure: bool = False
+    auth_cookie_samesite: str = "lax"
 
     llm_provider: str = "ollama"  # "ollama" or "openai"
 

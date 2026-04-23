@@ -12,7 +12,7 @@ import { deleteDocument } from '../lib/documents'
 import { searchDocuments } from '../utils/documents'
 
 export function MyDocumentsPage() {
-  const { token } = useAuth()
+  const { isAuthenticated } = useAuth()
   const { documents, errorMessage, isLoading, setDocuments } = useDocuments('mine')
   const [searchParams] = useSearchParams()
   const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null)
@@ -25,7 +25,7 @@ export function MyDocumentsPage() {
   )
 
   async function handleConfirmDeleteDocument() {
-    if (!token || !documentToDelete || deletingDocumentId !== null) {
+    if (!isAuthenticated || !documentToDelete || deletingDocumentId !== null) {
       return
     }
 
@@ -33,7 +33,7 @@ export function MyDocumentsPage() {
     setDeleteErrorMessage(null)
 
     try {
-      await deleteDocument(token, documentToDelete.id)
+      await deleteDocument(documentToDelete.id)
       setDocuments((currentDocuments) =>
         currentDocuments.filter((document) => document.id !== documentToDelete.id),
       )

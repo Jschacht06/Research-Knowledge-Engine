@@ -40,7 +40,7 @@ type ChatMessage = {
 }
 
 export function ChatPage() {
-  const { token } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [conversations, setConversations] = useState<ChatConversation[]>([])
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null)
   const [hasSelectedInitialConversation, setHasSelectedInitialConversation] = useState(false)
@@ -61,7 +61,7 @@ export function ChatPage() {
     let cancelled = false
 
     async function loadConversations() {
-      if (!token) {
+      if (!isAuthenticated) {
         setConversations([])
         setIsLoadingConversations(false)
         return
@@ -71,9 +71,7 @@ export function ChatPage() {
       setErrorMessage(null)
 
       try {
-        const nextConversations = await apiRequest<ChatConversation[]>('/chat/conversations', {
-          token,
-        })
+        const nextConversations = await apiRequest<ChatConversation[]>('/chat/conversations')
 
         if (!cancelled) {
           setConversations(nextConversations)
@@ -100,7 +98,7 @@ export function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [hasSelectedInitialConversation, token])
+  }, [hasSelectedInitialConversation, isAuthenticated])
 
   useEffect(() => {
     let cancelled = false
@@ -110,7 +108,7 @@ export function ChatPage() {
         return
       }
 
-      if (!token || !activeConversationId) {
+      if (!isAuthenticated || !activeConversationId) {
         setMessages([])
         return
       }
@@ -121,7 +119,6 @@ export function ChatPage() {
       try {
         const nextMessages = await apiRequest<ChatMessage[]>(
           `/chat/conversations/${activeConversationId}/messages`,
-          { token },
         )
 
         if (!cancelled) {
@@ -145,29 +142,26 @@ export function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [activeConversationId, isSubmitting, token])
+  }, [activeConversationId, isAuthenticated, isSubmitting])
 
   async function refreshConversations() {
-    if (!token) {
+    if (!isAuthenticated) {
       return
     }
 
-    const nextConversations = await apiRequest<ChatConversation[]>('/chat/conversations', {
-      token,
-    })
+    const nextConversations = await apiRequest<ChatConversation[]>('/chat/conversations')
     startTransition(() => {
       setConversations(nextConversations)
     })
   }
 
   async function createConversation() {
-    if (!token) {
+    if (!isAuthenticated) {
       return null
     }
 
     const conversation = await apiRequest<ChatConversation>('/chat/conversations', {
       method: 'POST',
-      token,
     })
 
     startTransition(() => {
@@ -199,7 +193,7 @@ export function ChatPage() {
 
   async function renameConversation(conversationId: number) {
     const nextTitle = renameDraft.trim()
-    if (!token || !nextTitle || isMutatingConversation) {
+    if (!isAuthenticated || !nextTitle || isMutatingConversation) {
       return
     }
 
@@ -211,7 +205,6 @@ export function ChatPage() {
         `/chat/conversations/${conversationId}`,
         {
           method: 'PUT',
-          token,
           body: JSON.stringify({ title: nextTitle }),
           headers: {
             'Content-Type': 'application/json',
@@ -238,7 +231,7 @@ export function ChatPage() {
   }
 
   async function deleteConversation(conversationId: number) {
-    if (!token || isMutatingConversation) {
+    if (!isAuthenticated || isMutatingConversation) {
       return
     }
 
@@ -248,7 +241,6 @@ export function ChatPage() {
     try {
       await apiRequest<{ ok: boolean }>(`/chat/conversations/${conversationId}`, {
         method: 'DELETE',
-        token,
       })
 
       startTransition(() => {
@@ -277,7 +269,7 @@ export function ChatPage() {
 
   async function sendMessage(question: string) {
     const cleanedQuestion = question.trim()
-    if (!cleanedQuestion || !token || isSubmitting) {
+    if (!cleanedQuestion || !isAuthenticated || isSubmitting) {
       return
     }
 
@@ -305,7 +297,6 @@ export function ChatPage() {
         `/chat/conversations/${conversationId}/messages`,
         {
           method: 'POST',
-          token,
           body: JSON.stringify({
             question: cleanedQuestion,
           }),

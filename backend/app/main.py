@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import BackgroundTasks, Body, FastAPI, Depends, HTTPException, Request, UploadFile, File, Form, Path as ApiPath
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -99,11 +99,6 @@ class UserOut(BaseModel):
     full_name: str | None = None
     class Config:
         from_attributes = True
-
-
-class TokenOut(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
 
 
 class DocumentOut(BaseModel):
@@ -236,8 +231,13 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
     return user
 
 
-@app.post("/auth/login", response_model=TokenOut)
-def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@app.post("/auth/login")
+def login(
+    response: Response,
+    request: Request,
+    form: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
     client_ip = get_client_ip(request)
     login_failures_by_ip.ensure_allowed(
         client_ip,
@@ -257,7 +257,26 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Ses
     login_failures_by_ip.record_success(client_ip)
     login_failures_by_email.record_success(email)
     token = create_access_token(user.id)
-    return TokenOut(access_token=token)
+    response.set_cookie(
+        key=settings.auth_cookie_name,
+        value=token,
+        httponly=True,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=60 * 60 * 24,
+        path="/",
+    )
+    return {"ok": True}
+
+
+@app.post("/auth/logout")
+def logout(response: Response):
+    response.delete_cookie(
+        key=settings.auth_cookie_name,
+        path="/",
+        samesite=settings.auth_cookie_samesite,
+    )
+    return {"ok": True}
 
 
 @app.get("/me", response_model=UserOut)

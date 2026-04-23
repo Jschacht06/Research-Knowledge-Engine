@@ -15,7 +15,7 @@ const maxFileSizeInBytes = 25 * 1024 * 1024
 export function UploadPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const { token } = useAuth()
+  const { isAuthenticated } = useAuth()
   const { documents } = useDocuments()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [title, setTitle] = useState('')
@@ -95,7 +95,7 @@ export function UploadPage() {
   }
 
   async function handleUpload() {
-    if (!token) {
+    if (!isAuthenticated) {
       setErrorMessage('You must be logged in to upload a document.')
       return
     }
@@ -130,7 +130,7 @@ export function UploadPage() {
     setIsSubmitting(true)
 
     try {
-      const uploadedDocument = await uploadDocument(token, {
+      const uploadedDocument = await uploadDocument({
         file: selectedFile,
         title: title.trim(),
         topics,

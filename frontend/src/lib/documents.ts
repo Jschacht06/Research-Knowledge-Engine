@@ -63,31 +63,25 @@ function normalizeDocument(document: DocumentApiResponse): DocumentRecord {
   }
 }
 
-export async function fetchDocuments(token: string) {
-  const response = await apiRequest<DocumentApiResponse[]>('/documents', {
-    token,
-  })
+export async function fetchDocuments() {
+  const response = await apiRequest<DocumentApiResponse[]>('/documents')
 
   return response.map(normalizeDocument)
 }
 
-export async function fetchMyDocuments(token: string) {
-  const response = await apiRequest<DocumentApiResponse[]>('/documents/mine', {
-    token,
-  })
+export async function fetchMyDocuments() {
+  const response = await apiRequest<DocumentApiResponse[]>('/documents/mine')
 
   return response.map(normalizeDocument)
 }
 
-export async function fetchDocument(token: string, documentId: number) {
-  const response = await apiRequest<DocumentApiResponse>(`/documents/${documentId}`, {
-    token,
-  })
+export async function fetchDocument(documentId: number) {
+  const response = await apiRequest<DocumentApiResponse>(`/documents/${documentId}`)
 
   return normalizeDocument(response)
 }
 
-export async function uploadDocument(token: string, payload: UploadDocumentPayload) {
+export async function uploadDocument(payload: UploadDocumentPayload) {
   const formData = new FormData()
   formData.append('file', payload.file)
   formData.append('title', payload.title)
@@ -100,18 +94,13 @@ export async function uploadDocument(token: string, payload: UploadDocumentPaylo
 
   const response = await apiRequest<DocumentApiResponse>('/documents/upload', {
     method: 'POST',
-    token,
     body: formData,
   })
 
   return normalizeDocument(response)
 }
 
-export async function updateDocument(
-  token: string,
-  documentId: number,
-  payload: UpdateDocumentPayload,
-) {
+export async function updateDocument(documentId: number, payload: UpdateDocumentPayload) {
   const formData = new FormData()
   if (payload.file) {
     formData.append('file', payload.file)
@@ -126,27 +115,23 @@ export async function updateDocument(
 
   const response = await apiRequest<DocumentApiResponse>(`/documents/${documentId}`, {
     method: 'PUT',
-    token,
     body: formData,
   })
 
   return normalizeDocument(response)
 }
 
-export async function deleteDocument(token: string, documentId: number) {
+export async function deleteDocument(documentId: number) {
   await apiRequest<{ ok: boolean }>(`/documents/${documentId}`, {
     method: 'DELETE',
-    token,
   })
 }
 
-export async function fetchDocumentFile(token: string, documentId: number) {
+export async function fetchDocumentFile(documentId: number) {
   const response = await fetch(
     `${getApiBaseUrl()}/documents/${documentId}/file`,
     {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      credentials: 'include',
     },
   )
 
