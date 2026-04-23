@@ -61,9 +61,9 @@ async def request_validation_exception_handler(_request, exc: RequestValidationE
 def on_startup():
     # enable pgvector extension
     with engine.begin() as conn:
+        conn.execute(sql_text("SELECT pg_advisory_lock(482019641)"))
         conn.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
-    Base.metadata.create_all(bind=engine)
-    with engine.begin() as conn:
+        Base.metadata.create_all(bind=conn)
         conn.execute(sql_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS title VARCHAR(255)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topic VARCHAR(120)"))
@@ -90,6 +90,7 @@ def on_startup():
         conn.execute(sql_text("ALTER TABLE documents ALTER COLUMN keywords SET DEFAULT '[]'::jsonb"))
         conn.execute(sql_text("UPDATE documents SET authors = '[]'::jsonb WHERE authors IS NULL"))
         conn.execute(sql_text("UPDATE documents SET keywords = '[]'::jsonb WHERE keywords IS NULL"))
+        conn.execute(sql_text("SELECT pg_advisory_unlock(482019641)"))
     Path(settings.storage_dir).mkdir(parents=True, exist_ok=True)
 
 

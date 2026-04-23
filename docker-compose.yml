@@ -53,6 +53,7 @@ services:
       OLLAMA_BASE_URL: "http://ollama:11434"
       OLLAMA_CHAT_MODEL: "llama3.1:8b"
       OLLAMA_EMBED_MODEL: "nomic-embed-text"
+      BACKEND_WORKERS: "${BACKEND_WORKERS:-2}"
     depends_on:
       db:
         condition: service_started
@@ -63,13 +64,10 @@ services:
 
   frontend:
     build: ./frontend
-    environment:
-      VITE_API_BASE_URL: "${VITE_API_BASE_URL}"
-      VITE_BACKEND_PROXY_TARGET: "${VITE_BACKEND_PROXY_TARGET}"
     depends_on:
       - backend
     ports:
-      - "5173:5173"
+      - "80:80"
 volumes:
   db_data:
   files_data:
