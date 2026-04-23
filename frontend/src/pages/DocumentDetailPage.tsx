@@ -256,10 +256,7 @@ export function DocumentDetailPage() {
               </div>
               <div>
                 <p className="font-bold text-rke-navy">{document.authors[0] ?? 'Unknown author'}</p>
-                <p className="text-sm text-rke-copy">Senior Researcher</p>
-                <p className="mt-3 text-sm leading-7 text-rke-copy">
-                  Uploaded through the Research Knowledge Engine.
-                </p>
+                <p className="text-sm text-rke-copy">Researcher</p>
               </div>
             </div>
           </section>

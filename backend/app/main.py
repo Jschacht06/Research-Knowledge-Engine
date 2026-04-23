@@ -60,15 +60,25 @@ def on_startup():
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS title VARCHAR(255)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topic VARCHAR(120)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS topics JSONB DEFAULT '[]'::jsonb"))
+        conn.execute(sql_text("ALTER TABLE documents ALTER COLUMN topics TYPE JSONB USING topics::jsonb"))
+        conn.execute(sql_text("ALTER TABLE documents ALTER COLUMN topics SET DEFAULT '[]'::jsonb"))
         conn.execute(
             sql_text(
-                "UPDATE documents SET topics = jsonb_build_array(topic) WHERE topic IS NOT NULL AND topics = '[]'::jsonb"
+                "UPDATE documents SET topics = jsonb_build_array(topic) "
+                "WHERE topic IS NOT NULL AND COALESCE(topics, '[]'::jsonb) = '[]'::jsonb"
             )
         )
+        conn.execute(sql_text("UPDATE documents SET topics = '[]'::jsonb WHERE topics IS NULL"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS status VARCHAR(40)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS abstract TEXT"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS authors JSONB DEFAULT '[]'::jsonb"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS keywords JSONB DEFAULT '[]'::jsonb"))
+        conn.execute(sql_text("ALTER TABLE documents ALTER COLUMN authors TYPE JSONB USING authors::jsonb"))
+        conn.execute(sql_text("ALTER TABLE documents ALTER COLUMN keywords TYPE JSONB USING keywords::jsonb"))
+        conn.execute(sql_text("ALTER TABLE documents ALTER COLUMN authors SET DEFAULT '[]'::jsonb"))
+        conn.execute(sql_text("ALTER TABLE documents ALTER COLUMN keywords SET DEFAULT '[]'::jsonb"))
+        conn.execute(sql_text("UPDATE documents SET authors = '[]'::jsonb WHERE authors IS NULL"))
+        conn.execute(sql_text("UPDATE documents SET keywords = '[]'::jsonb WHERE keywords IS NULL"))
     Path(settings.storage_dir).mkdir(parents=True, exist_ok=True)
 
 

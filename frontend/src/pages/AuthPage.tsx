@@ -3,7 +3,7 @@ import { FileText } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { ApiError, getApiBaseUrl } from '../lib/api'
+import { ApiError } from '../lib/api'
 
 type AuthPageProps = {
   mode: 'login' | 'register'
@@ -131,15 +131,11 @@ export function AuthPage({ mode }: AuthPageProps) {
             />
           </div>
 
-          <div className="mt-4 flex justify-end">
-            {isLogin ? (
-              <button className="text-sm font-medium text-rke-teal transition hover:text-rke-navy" type="button">
-                Forgot password?
-              </button>
-            ) : (
-              <p className="text-sm text-slate-500">Use at least 8 characters.</p>
-            )}
-          </div>
+          {!isLogin && (
+            <p className="mt-4 text-right text-sm text-slate-500">
+              Use at least 8 characters.
+            </p>
+          )}
 
           <button
             className="mt-5 h-12 w-full rounded-2xl bg-rke-amber text-base font-bold text-white shadow-[0_10px_24px_rgba(245,162,6,0.28)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
@@ -169,9 +165,6 @@ export function AuthPage({ mode }: AuthPageProps) {
           </Link>
         </p>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
-          API base: {getApiBaseUrl()}
-        </p>
       </div>
     </div>
   )

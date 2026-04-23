@@ -1,39 +1,12 @@
 import {
-  BookOpen,
-  FileText,
   FolderTree,
-  Grid2x2,
+  MessageSquareText,
   Search,
   Upload,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { FeatureCard } from '../components/landing/FeatureCard'
 import { AppLogo } from '../components/ui/AppLogo'
 import { SectionHeading } from '../components/ui/SectionHeading'
-
-const featureCards = [
-  {
-    title: 'Upload proposals',
-    description:
-      'Capture research proposals and supporting documents with structured metadata instead of loose files and folders.',
-    icon: Upload,
-    accentClassName: 'bg-rke-teal-soft text-rke-teal',
-  },
-  {
-    title: 'Organize by topic',
-    description:
-      'Keep robotics, AI, sensors and control work discoverable through clear taxonomy and shared structure.',
-    icon: FolderTree,
-    accentClassName: 'bg-rke-amber-soft text-rke-amber',
-  },
-  {
-    title: 'Discover related work',
-    description:
-      'Explore the collective knowledge base with filters, author lookups and reusable document views.',
-    icon: Search,
-    accentClassName: 'bg-rke-violet-soft text-rke-violet',
-  },
-]
 
 const steps = [
   {
@@ -57,12 +30,13 @@ const steps = [
     icon: Search,
     accentClassName: 'bg-rke-violet-soft text-rke-violet',
   },
-]
-
-const stats = [
-  { label: 'Documents', value: '120+', icon: FileText },
-  { label: 'Researchers', value: '15', icon: Grid2x2 },
-  { label: 'Research topics', value: '8', icon: BookOpen },
+  {
+    index: '4',
+    title: 'Ask AI',
+    description: 'Ask questions about documents or get help shaping new proposals with the integrated AI chatbot.',
+    icon: MessageSquareText,
+    accentClassName: 'bg-rke-blue/10 text-rke-blue',
+  },
 ]
 
 export function LandingPage() {
@@ -76,11 +50,11 @@ export function LandingPage() {
             <Link className="transition hover:text-rke-navy" to="/">
               Home
             </Link>
-            <a className="transition hover:text-rke-navy" href="#core-workflow">
-              Explore
+            <a className="transition hover:text-rke-navy" href="#how-it-works">
+              How it works
             </a>
-            <a className="transition hover:text-rke-navy" href="#about-rke">
-              About
+            <a className="transition hover:text-rke-navy" href="#contact">
+              Contact
             </a>
           </nav>
 
@@ -112,10 +86,6 @@ export function LandingPage() {
           <h1 className="mt-8 max-w-4xl text-5xl font-extrabold tracking-tight md:text-7xl">
             Your research should feel structured, shared and discoverable.
           </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-100">
-            A cleaner frontend foundation for the VIVES Mechatronics research group, ready
-            for real routing, reusable components and maintainable React workflows.
-          </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Link
               className="inline-flex items-center justify-center rounded-2xl bg-rke-amber px-6 py-3.5 font-semibold text-white shadow-lg shadow-rke-amber/30 transition hover:-translate-y-0.5"
@@ -123,50 +93,23 @@ export function LandingPage() {
             >
               Get Started
             </Link>
-            <a
+            <Link
               className="inline-flex items-center justify-center rounded-2xl border border-white/30 bg-white/10 px-6 py-3.5 font-semibold text-white transition hover:bg-white/15"
-              href="#core-workflow"
+              to="/login"
             >
               Explore Research
-            </a>
+            </Link>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl scroll-mt-24 px-5 py-20" id="core-workflow">
+      <section className="mx-auto max-w-7xl scroll-mt-24 px-5 py-20" id="how-it-works">
         <SectionHeading
-          description="The landing experience is now just one page in a routed app, instead of the whole product living inside one component."
-          eyebrow="Core Workflow"
-          title="Built around the way research teams actually work"
-        />
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          {featureCards.map((feature) => (
-            <FeatureCard key={feature.title} {...feature} />
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-rke-teal">
-        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 text-center text-white md:grid-cols-3">
-          {stats.map(({ label, value, icon: Icon }) => (
-            <div key={label} className="flex flex-col items-center gap-3">
-              <Icon size={30} />
-              <strong className="text-4xl font-extrabold tracking-tight">{value}</strong>
-              <span className="text-sm font-semibold uppercase tracking-[0.24em] text-white/80">
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-20">
-        <SectionHeading
-          description="Each major page now lives in its own file, while shared UI stays in reusable components instead of being copied inside one giant render function."
+          description="Store proposals in one shared research database, keep them organized by topic, and make past work easier to search, browse, and reuse."
           eyebrow="How It Works"
-          title="A product flow that is easier to explain to new React developers"
+          title="A research workflow built for one shared knowledge base"
         />
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+        <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {steps.map(({ index, title, description, icon: Icon, accentClassName }) => (
             <article
               key={title}
@@ -205,18 +148,18 @@ export function LandingPage() {
             </Link>
             <a
               className="block text-sm text-rke-copy transition hover:text-rke-navy"
-              href="#core-workflow"
+              href="#how-it-works"
             >
-              Explore
+              How it works
             </a>
-            <a className="block text-sm text-rke-copy transition hover:text-rke-navy" href="#about-rke">
-              About
+            <a className="block text-sm text-rke-copy transition hover:text-rke-navy" href="#contact">
+              Contact
             </a>
             <Link className="block text-sm text-rke-copy transition hover:text-rke-navy" to="/login">
               Login
             </Link>
           </section>
-          <section className="space-y-3">
+          <section className="space-y-3" id="contact">
             <h2 className="text-lg font-bold text-rke-navy">Contact</h2>
             <p className="text-sm text-rke-copy">VIVES Mechatronics</p>
             <p className="text-sm text-rke-copy">research@vives.be</p>
@@ -224,12 +167,6 @@ export function LandingPage() {
         </div>
       </footer>
 
-      <button
-        className="fixed bottom-4 left-4 rounded-xl border border-rke-border bg-white px-3 py-2 text-xs font-medium text-slate-500 shadow-lg shadow-slate-900/5"
-        type="button"
-      >
-        Manage cookies or opt out
-      </button>
     </div>
   )
 }

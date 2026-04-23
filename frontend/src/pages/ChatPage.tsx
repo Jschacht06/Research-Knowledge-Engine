@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { startTransition, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { apiRequest, ApiError } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 
@@ -47,6 +48,8 @@ export function ChatPage() {
   const [draft, setDraft] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
+  const [conversationPendingDelete, setConversationPendingDelete] =
+    useState<ChatConversation | null>(null)
   const [renamingConversationId, setRenamingConversationId] = useState<number | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
   const [isMutatingConversation, setIsMutatingConversation] = useState(false)
@@ -239,11 +242,6 @@ export function ChatPage() {
       return
     }
 
-    const shouldDelete = window.confirm('Delete this conversation? This cannot be undone.')
-    if (!shouldDelete) {
-      return
-    }
-
     setIsMutatingConversation(true)
     setErrorMessage(null)
 
@@ -259,6 +257,7 @@ export function ChatPage() {
         )
         setConversations(remainingConversations)
         setOpenMenuId(null)
+        setConversationPendingDelete(null)
         setRenamingConversationId(null)
 
         if (activeConversationId === conversationId) {
@@ -267,6 +266,7 @@ export function ChatPage() {
         }
       })
     } catch (error) {
+      setConversationPendingDelete(null)
       setErrorMessage(
         error instanceof ApiError ? error.message : 'Could not delete this conversation.',
       )
@@ -350,6 +350,20 @@ export function ChatPage() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <ConfirmDialog
+        confirmLabel="Delete chat"
+        description={`"${conversationPendingDelete?.title ?? 'This chat'}" and its messages will be permanently removed. This action cannot be undone.`}
+        isOpen={conversationPendingDelete !== null}
+        isPending={isMutatingConversation}
+        onCancel={() => setConversationPendingDelete(null)}
+        onConfirm={() => {
+          if (conversationPendingDelete) {
+            void deleteConversation(conversationPendingDelete.id)
+          }
+        }}
+        title="Delete this chat?"
+      />
+
       <aside className="h-fit rounded-[30px] border border-rke-border/80 bg-white p-5 shadow-[0_24px_70px_rgba(24,46,75,0.08)]">
         <button
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-rke-teal px-4 py-3 text-sm font-bold text-white transition hover:brightness-105"
@@ -456,7 +470,10 @@ export function ChatPage() {
                     </button>
                     <button
                       className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-rose-600 transition hover:bg-rose-50"
-                      onClick={() => void deleteConversation(conversation.id)}
+                      onClick={() => {
+                        setOpenMenuId(null)
+                        setConversationPendingDelete(conversation)
+                      }}
                       type="button"
                     >
                       <Trash2 size={14} />
@@ -602,10 +619,7 @@ export function ChatPage() {
                 />
               </label>
 
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-rke-copy">
-                  Conversations are saved to your account and use the shared indexed documents.
-                </p>
+              <div className="flex justify-end">
                 <button
                   className="inline-flex items-center gap-2 rounded-2xl bg-rke-amber px-5 py-3 text-sm font-bold text-white shadow-[0_12px_28px_rgba(245,162,6,0.28)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
                   disabled={isSubmitting || !draft.trim()}

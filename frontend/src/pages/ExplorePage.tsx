@@ -1,4 +1,4 @@
-import { Calendar, Grid2x2, List, ListFilter } from 'lucide-react'
+import { Calendar, ListFilter } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DocumentCard } from '../components/ui/DocumentCard'
@@ -203,23 +203,6 @@ export function ExplorePage() {
           <p className="text-sm text-rke-copy sm:ml-auto">
             {filteredDocuments.length} documents found
           </p>
-
-          <div className="flex items-center gap-2">
-            <button
-              aria-label="Grid view"
-              className="grid size-11 place-items-center rounded-2xl bg-rke-teal text-white"
-              type="button"
-            >
-              <Grid2x2 size={18} />
-            </button>
-            <button
-              aria-label="List view"
-              className="grid size-11 place-items-center rounded-2xl border border-rke-border bg-rke-surface text-rke-copy"
-              type="button"
-            >
-              <List size={18} />
-            </button>
-          </div>
         </div>
 
         {errorMessage ? (
