@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     jwt_secret: str
     storage_dir: str = "/data/files"
     frontend_origins: str = "http://localhost:5173,http://localhost:3000"
+    allowed_email_domains: str
 
     llm_provider: str = "ollama"  # "ollama" or "openai"
 
@@ -24,6 +25,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.frontend_origins.split(",") if origin.strip()]
+
+    @property
+    def email_domains(self) -> list[str]:
+        return [domain.strip().lower() for domain in self.allowed_email_domains.split(",") if domain.strip()]
 
 
 settings = Settings()  # read environment variables and create an instance of the Settings class to use later on

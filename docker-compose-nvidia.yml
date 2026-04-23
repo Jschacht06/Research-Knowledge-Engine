@@ -50,6 +50,7 @@ services:
       JWT_SECRET: "change_me_in_prod"
       STORAGE_DIR: "/data/files"
       FRONTEND_ORIGINS: "http://localhost:5173,http://frontend:5173"
+      ALLOWED_EMAIL_DOMAINS: "${ALLOWED_EMAIL_DOMAINS}"
 
       # Chat/Embeddings: local Ollama
       LLM_PROVIDER: "ollama"

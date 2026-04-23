@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 from pydantic import BaseModel, Field, ValidationError, field_validator
+from .config import settings
 
 ALLOWED_DOCUMENT_EXTENSIONS = {"pdf", "docx", "pptx"}
 ALLOWED_DOCUMENT_MIME_TYPES = {
@@ -66,6 +67,17 @@ def bad_request_from_validation(error: ValidationError) -> HTTPException:
     return HTTPException(status_code=400, detail=validation_error_message(error))
 
 
+def validate_allowed_email_domain(cleaned_email: str) -> str:
+    if "@" not in cleaned_email:
+        raise ValueError("Please enter a valid email address")
+
+    domain = cleaned_email.rsplit("@", 1)[1]
+    if domain not in settings.email_domains:
+        raise ValueError("Please enter a valid email address")
+
+    return cleaned_email
+
+
 def validate_login_credentials(email: str, password: str) -> tuple[str, str]:
     cleaned_email = email.strip().lower()
     if not cleaned_email or not password:
@@ -74,6 +86,10 @@ def validate_login_credentials(email: str, password: str) -> tuple[str, str]:
         raise HTTPException(status_code=400, detail="Email must be 320 characters or fewer")
     if not EMAIL_PATTERN.match(cleaned_email):
         raise HTTPException(status_code=400, detail="Please enter a valid email address")
+    try:
+        validate_allowed_email_domain(cleaned_email)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if len(password) > 128:
         raise HTTPException(status_code=400, detail="Password must be 128 characters or fewer")
     if SINGLE_LINE_CONTROL_PATTERN.search(password):
@@ -153,7 +169,7 @@ class RegisterIn(BaseModel):
             raise ValueError("Email must be 320 characters or fewer")
         if not EMAIL_PATTERN.match(cleaned):
             raise ValueError("Please enter a valid email address")
-        return cleaned
+        return validate_allowed_email_domain(cleaned)
 
     @field_validator("full_name")
     @classmethod
