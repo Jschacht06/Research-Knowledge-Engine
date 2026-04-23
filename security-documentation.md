@@ -32,3 +32,8 @@ User registration is restricted to approved institutional email domains via serv
 validation. Full email verification or SSO integration was considered but could not be implemented
 due to organizational infrastructure constraints and lack of access to trusted mail delivery or
 identity-provider configuration.
+
+
+
+
+Uploaded documents are validated by extension, MIME type, file size, and basic file structure before processing. However, advanced sandboxed document parsing and malware scanning are not implemented in the current version due to project scope and infrastructure complexity.

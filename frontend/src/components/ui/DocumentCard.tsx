@@ -5,6 +5,8 @@ import {
   documentTopics,
   formatAuthorList,
   formatDocumentDate,
+  processingStatusAccent,
+  processingStatusLabel,
   statusAccent,
   topicAccent,
 } from '../../utils/documents'
@@ -44,6 +46,11 @@ export function DocumentCard({ document, compact = false }: DocumentCardProps) {
             className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-xs font-bold ring-1 ${statusAccent(document.status)}`}
           >
             {document.status ?? 'No status'}
+          </span>
+          <span
+            className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-xs font-bold ring-1 ${processingStatusAccent(document.processingStatus)}`}
+          >
+            {processingStatusLabel(document.processingStatus)}
           </span>
         </div>
 

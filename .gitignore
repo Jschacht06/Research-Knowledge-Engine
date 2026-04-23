@@ -21,3 +21,5 @@ node_modules
 __pycache__/
 
 todo.md
+
+security-documentation.md

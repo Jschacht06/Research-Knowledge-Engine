@@ -1,8 +1,9 @@
+import asyncio
 import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Body, FastAPI, Depends, HTTPException, UploadFile, File, Form, Path as ApiPath
+from fastapi import BackgroundTasks, Body, FastAPI, Depends, HTTPException, Request, UploadFile, File, Form, Path as ApiPath
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text as sql_text
 
 from .config import settings
-from .db import Base, engine, get_db
+from .db import Base, engine, get_db, SessionLocal
 from .models import User, Document, DocumentChunk, ChatConversation, ChatConversationMessage
 from .security import (
     hash_password,
@@ -23,6 +24,13 @@ from .security import (
 )
 from .extractors import extract_text
 from .rag import chunk_text, embed_texts, retrieve_top_chunks, chat_answer, conversational_answer
+from .rate_limit import (
+    chat_rate_limiter,
+    login_failures_by_email,
+    login_failures_by_ip,
+    register_rate_limiter,
+    upload_rate_limiter,
+)
 from .validation import (
     ChatConversationUpdateIn,
     ChatIn,
@@ -70,6 +78,9 @@ def on_startup():
         )
         conn.execute(sql_text("UPDATE documents SET topics = '[]'::jsonb WHERE topics IS NULL"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS status VARCHAR(40)"))
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS processing_status VARCHAR(40)"))
+        conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS processing_error TEXT"))
+        conn.execute(sql_text("UPDATE documents SET processing_status = 'ready' WHERE processing_status IS NULL"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS abstract TEXT"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS authors JSONB DEFAULT '[]'::jsonb"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS keywords JSONB DEFAULT '[]'::jsonb"))
@@ -103,6 +114,8 @@ class DocumentOut(BaseModel):
     topic: str | None = None
     topics: list[str]
     status: str | None = None
+    processing_status: str
+    processing_error: str | None = None
     abstract: str | None = None
     authors: list[str]
     keywords: list[str]
@@ -140,9 +153,59 @@ def serialize_document(document: Document) -> Document:
         document.title = document.filename
     if not document.topics:
         document.topics = [document.topic] if document.topic else []
+    document.processing_status = document.processing_status or "ready"
     document.authors = document.authors or []
     document.keywords = document.keywords or []
     return document
+
+
+def process_document_ingestion(document_id: int) -> None:
+    db = SessionLocal()
+    try:
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            return
+
+        document.processing_status = "processing"
+        document.processing_error = None
+        db.query(DocumentChunk).filter(DocumentChunk.document_id == document.id).delete()
+        db.commit()
+
+        text_content = extract_text(document.filepath)
+        chunks = chunk_text(text_content)
+        if chunks:
+            vectors = asyncio.run(embed_texts(chunks))
+            for index, (chunk, vector) in enumerate(zip(chunks, vectors)):
+                db.add(
+                    DocumentChunk(
+                        document_id=document.id,
+                        chunk_index=index,
+                        content=chunk,
+                        embedding=vector,
+                    )
+                )
+
+        document.processing_status = "ready"
+        document.processing_error = None
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if document:
+            document.processing_status = "failed"
+            document.processing_error = str(exc)[:500]
+            db.commit()
+    finally:
+        db.close()
+
+
+def get_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        first_ip = forwarded_for.split(",")[0].strip()
+        if first_ip:
+            return first_ip
+    return request.client.host if request.client else "unknown"
 
 
 @app.get("/health")
@@ -153,7 +216,11 @@ def health():
 # -------- AUTH --------
 
 @app.post("/auth/register", response_model=UserOut)
-def register(payload: RegisterIn, db: Session = Depends(get_db)):
+def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db)):
+    register_rate_limiter.check(
+        get_client_ip(request),
+        "Too many registration attempts. Please try again later.",
+    )
     existing = get_user_by_email(db, payload.email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -170,12 +237,25 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/login", response_model=TokenOut)
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    client_ip = get_client_ip(request)
+    login_failures_by_ip.ensure_allowed(
+        client_ip,
+        "Too many failed login attempts. Please try again in 10 minutes.",
+    )
     email, password = validate_login_credentials(form.username, form.password)
+    login_failures_by_email.ensure_allowed(
+        email,
+        "Too many failed login attempts. Please try again in 10 minutes.",
+    )
     user = get_user_by_email(db, email)
     if not user or not verify_password(password, user.password_hash):
+        login_failures_by_ip.record_failure(client_ip)
+        login_failures_by_email.record_failure(email)
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
+    login_failures_by_ip.record_success(client_ip)
+    login_failures_by_email.record_success(email)
     token = create_access_token(user.id)
     return TokenOut(access_token=token)
 
@@ -189,6 +269,8 @@ def me(current_user: User = Depends(get_current_user)):
 
 @app.post("/documents/upload", response_model=DocumentOut)
 async def upload_document(
+    background_tasks: BackgroundTasks,
+    request: Request,
     file: UploadFile = File(...),
     title: str = Form(...),
     topic: str = Form(""),
@@ -200,6 +282,14 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    upload_rate_limiter.check(
+        f"user:{current_user.id}",
+        "Too many upload requests. Please try again later.",
+    )
+    upload_rate_limiter.check(
+        f"ip:{get_client_ip(request)}",
+        "Too many upload requests. Please try again later.",
+    )
     document_input = validate_document_form(
         title=title,
         topic=topic,
@@ -224,6 +314,8 @@ async def upload_document(
         topic=document_input.topics[0],
         topics=document_input.topics,
         status=document_input.status,
+        processing_status="processing",
+        processing_error=None,
         abstract=document_input.abstract,
         authors=document_input.authors,
         keywords=document_input.keywords,
@@ -233,22 +325,13 @@ async def upload_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
-
-    # --- Extract + chunk + embed + store ---
-    text_content = extract_text(doc.filepath)
-    chunks = chunk_text(text_content)
-
-    if chunks:
-        vectors = await embed_texts(chunks)
-        for i, (c, v) in enumerate(zip(chunks, vectors)):
-            db.add(DocumentChunk(document_id=doc.id, chunk_index=i, content=c, embedding=v))
-        db.commit()
-
+    background_tasks.add_task(process_document_ingestion, doc.id)
     return doc
 
 
 @app.put("/documents/{document_id}", response_model=DocumentOut)
 async def update_document(
+    background_tasks: BackgroundTasks,
     document_id: int = ApiPath(..., ge=1),
     title: str = Form(...),
     topic: str = Form(""),
@@ -302,20 +385,18 @@ async def update_document(
 
         document.filename = filename
         document.filepath = str(storage_path)
+        document.processing_status = "processing"
+        document.processing_error = None
 
         db.query(DocumentChunk).filter(DocumentChunk.document_id == document.id).delete()
-        text_content = extract_text(document.filepath)
-        chunks = chunk_text(text_content)
-        if chunks:
-            vectors = await embed_texts(chunks)
-            for i, (c, v) in enumerate(zip(chunks, vectors)):
-                db.add(DocumentChunk(document_id=document.id, chunk_index=i, content=c, embedding=v))
 
         if old_path.exists():
             old_path.unlink()
 
     db.commit()
     db.refresh(document)
+    if file and file.filename:
+        background_tasks.add_task(process_document_ingestion, document.id)
     return document
 
 
@@ -525,11 +606,20 @@ def list_chat_messages(
 
 @app.post("/chat/conversations/{conversation_id}/messages", response_model=ChatConversationMessageOut)
 async def ask_chat_in_conversation(
+    request: Request,
     conversation_id: int = ApiPath(..., ge=1),
     payload: ChatIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    chat_rate_limiter.check(
+        f"user:{current_user.id}",
+        "Too many chat requests. Please try again later.",
+    )
+    chat_rate_limiter.check(
+        f"ip:{get_client_ip(request)}",
+        "Too many chat requests. Please try again later.",
+    )
     conversation = get_owned_conversation(db, conversation_id, current_user.id)
     question = payload.question.strip()
     if not question:
@@ -615,7 +705,20 @@ async def ask_chat_in_conversation(
 
 
 @app.post("/chat/ask", response_model=ChatOut)
-async def ask_chat(payload: ChatIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def ask_chat(
+    payload: ChatIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    chat_rate_limiter.check(
+        f"user:{current_user.id}",
+        "Too many chat requests. Please try again later.",
+    )
+    chat_rate_limiter.check(
+        f"ip:{get_client_ip(request)}",
+        "Too many chat requests. Please try again later.",
+    )
     question = payload.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question required")

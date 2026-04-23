@@ -1,4 +1,10 @@
-import type { DocumentRecord, DocumentStatus, SortOrder, TopicName } from '../data/documents'
+import type {
+  DocumentProcessingStatus,
+  DocumentRecord,
+  DocumentStatus,
+  SortOrder,
+  TopicName,
+} from '../data/documents'
 
 export function parseDateInput(value: string): Date | null {
   const trimmed = value.trim()
@@ -100,6 +106,26 @@ export function statusAccent(status: DocumentStatus | null) {
   }
 
   return accents[status]
+}
+
+export function processingStatusAccent(status: DocumentProcessingStatus) {
+  const accents: Record<DocumentProcessingStatus, string> = {
+    processing: 'bg-amber-100 text-amber-700 ring-amber-200',
+    ready: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+    failed: 'bg-rose-100 text-rose-700 ring-rose-200',
+  }
+
+  return accents[status]
+}
+
+export function processingStatusLabel(status: DocumentProcessingStatus) {
+  const labels: Record<DocumentProcessingStatus, string> = {
+    processing: 'Processing',
+    ready: 'Indexed',
+    failed: 'Processing failed',
+  }
+
+  return labels[status]
 }
 
 export function matchesSearchQuery(document: DocumentRecord, rawQuery: string) {

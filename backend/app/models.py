@@ -27,6 +27,8 @@ class Document(Base):
     topic: Mapped[str | None] = mapped_column(String(120), nullable=True)
     topics: Mapped[list[str]] = mapped_column(JSONB, default=list)
     status: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    processing_status: Mapped[str] = mapped_column(String(40), default="ready")
+    processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     abstract: Mapped[str | None] = mapped_column(Text, nullable=True)
     authors: Mapped[list[str]] = mapped_column(JSONB, default=list)
     keywords: Mapped[list[str]] = mapped_column(JSONB, default=list)

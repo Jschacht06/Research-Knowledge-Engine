@@ -1,5 +1,6 @@
 import type {
   DocumentRecord,
+  DocumentProcessingStatus,
   DocumentStatus,
   TopicName,
   UpdateDocumentPayload,
@@ -15,6 +16,8 @@ type DocumentApiResponse = {
   topic: string | null
   topics?: string[]
   status: string | null
+  processing_status?: string | null
+  processing_error?: string | null
   abstract: string | null
   authors: string[]
   keywords: string[]
@@ -26,6 +29,10 @@ function normalizeStatus(status: string | null): DocumentStatus | null {
   return status && allowedStatuses.includes(status as DocumentStatus)
     ? (status as DocumentStatus)
     : null
+}
+
+function normalizeProcessingStatus(status: string | null | undefined): DocumentProcessingStatus {
+  return status === 'processing' || status === 'failed' ? status : 'ready'
 }
 
 function normalizeTopics(topic: string | null, topics: string[] | undefined): TopicName[] {
@@ -47,6 +54,8 @@ function normalizeDocument(document: DocumentApiResponse): DocumentRecord {
     topic: normalizedTopics[0] ?? document.topic,
     topics: normalizedTopics,
     status: normalizeStatus(document.status),
+    processingStatus: normalizeProcessingStatus(document.processing_status),
+    processingError: document.processing_error ?? null,
     abstract: document.abstract,
     authors: document.authors,
     keywords: document.keywords,

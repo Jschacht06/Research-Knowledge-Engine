@@ -130,7 +130,7 @@ export function UploadPage() {
     setIsSubmitting(true)
 
     try {
-      await uploadDocument(token, {
+      const uploadedDocument = await uploadDocument(token, {
         file: selectedFile,
         title: title.trim(),
         topics,
@@ -141,7 +141,11 @@ export function UploadPage() {
       })
 
       startTransition(() => {
-        setSuccessMessage('Document uploaded successfully. It is now available in the shared library and AI search.')
+        setSuccessMessage(
+          uploadedDocument.processingStatus === 'processing'
+            ? 'Document uploaded successfully. It is now being processed for AI search in the background.'
+            : 'Document uploaded successfully. It is now available in the shared library and AI search.',
+        )
         setSelectedFile(null)
         setTitle('')
         setAuthorInput('')
@@ -158,7 +162,7 @@ export function UploadPage() {
       }
 
       setTimeout(() => {
-        navigate('/app/documents')
+        navigate(`/app/documents/${uploadedDocument.id}`)
       }, 900)
     } catch (error) {
       setErrorMessage(

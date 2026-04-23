@@ -6,6 +6,8 @@ export type DocumentStatus =
   | 'Aangevraagd'
   | 'Done'
 
+export type DocumentProcessingStatus = 'processing' | 'ready' | 'failed'
+
 export type SortOrder = 'Newest' | 'Oldest'
 
 export type DocumentRecord = {
@@ -16,6 +18,8 @@ export type DocumentRecord = {
   topic: string | null
   topics: TopicName[]
   status: DocumentStatus | null
+  processingStatus: DocumentProcessingStatus
+  processingError: string | null
   abstract: string | null
   authors: string[]
   keywords: string[]

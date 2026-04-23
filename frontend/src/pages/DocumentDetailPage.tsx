@@ -11,6 +11,8 @@ import { deleteDocument, fetchDocument, fetchDocumentFile } from '../lib/documen
 import {
   documentTopics,
   formatDocumentDate,
+  processingStatusAccent,
+  processingStatusLabel,
   statusAccent,
   topicAccent,
 } from '../utils/documents'
@@ -34,6 +36,7 @@ export function DocumentDetailPage() {
   useEffect(() => {
     let cancelled = false
     let objectUrl: string | null = null
+    let pollTimer: number | null = null
 
     async function loadDocument() {
       if (!token || Number.isNaN(numericDocumentId)) {
@@ -56,6 +59,11 @@ export function DocumentDetailPage() {
           setDocument(nextDocument)
           setPreviewUrl(objectUrl)
           setPreviewContentType(fileResponse.contentType)
+          if (nextDocument.processingStatus === 'processing') {
+            pollTimer = window.setTimeout(() => {
+              void loadDocument()
+            }, 4000)
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -74,6 +82,9 @@ export function DocumentDetailPage() {
 
     return () => {
       cancelled = true
+      if (pollTimer !== null) {
+        window.clearTimeout(pollTimer)
+      }
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl)
       }
@@ -205,7 +216,24 @@ export function DocumentDetailPage() {
             <span className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${statusAccent(document.status)}`}>
               {document.status ?? 'No status'}
             </span>
+            <span className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ring-1 ${processingStatusAccent(document.processingStatus)}`}>
+              {processingStatusLabel(document.processingStatus)}
+            </span>
           </div>
+
+          {document.processingStatus !== 'ready' && (
+            <div
+              className={`mt-5 rounded-2xl px-4 py-3 text-sm ${
+                document.processingStatus === 'failed'
+                  ? 'border border-rose-200 bg-rose-50 text-rose-700'
+                  : 'border border-amber-200 bg-amber-50 text-amber-700'
+              }`}
+            >
+              {document.processingStatus === 'failed'
+                ? document.processingError ?? 'Document processing failed. The file was uploaded, but AI indexing did not complete.'
+                : 'This document is still being processed. It may take a moment before it appears in AI search results.'}
+            </div>
+          )}
 
           <h1 className="mt-5 max-w-5xl text-4xl font-extrabold tracking-tight text-rke-navy md:text-5xl">
             {document.title}
