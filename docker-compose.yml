@@ -2,17 +2,13 @@ services:
   db:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_USER: kb
-      POSTGRES_PASSWORD: kb
-      POSTGRES_DB: kb
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
     volumes:
       - db_data:/var/lib/postgresql/data
   ollama:
     image: ollama/ollama
-    ports:
-      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     deploy:
@@ -46,10 +42,10 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://kb:kb@db:5432/kb
-      JWT_SECRET: "change_me_in_prod"
-      STORAGE_DIR: "/data/files"
-      FRONTEND_ORIGINS: "http://localhost:5173,http://frontend:5173"
+      DATABASE_URL: "${DATABASE_URL}"
+      JWT_SECRET: "${JWT_SECRET}"
+      STORAGE_DIR: "${STORAGE_DIR}"
+      FRONTEND_ORIGINS: "${FRONTEND_ORIGINS}"
       ALLOWED_EMAIL_DOMAINS: "${ALLOWED_EMAIL_DOMAINS}"
 
       # Chat/Embeddings: local Ollama
@@ -62,29 +58,18 @@ services:
         condition: service_started
       ollama-init:
         condition: service_completed_successfully
-    ports:
-      - "8000:8000"
     volumes:
       - files_data:/data/files
 
   frontend:
     build: ./frontend
     environment:
-      VITE_API_BASE_URL: "http://localhost:8000"
+      VITE_API_BASE_URL: "${VITE_API_BASE_URL}"
+      VITE_BACKEND_PROXY_TARGET: "${VITE_BACKEND_PROXY_TARGET}"
     depends_on:
       - backend
     ports:
       - "5173:5173"
-  pgadmin:
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
-      PGADMIN_DEFAULT_PASSWORD: "admin"
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
-
 volumes:
   db_data:
   files_data:

@@ -5,7 +5,7 @@ import type {
   UpdateDocumentPayload,
   UploadDocumentPayload,
 } from '../data/documents'
-import { apiRequest } from './api'
+import { apiRequest, getApiBaseUrl } from './api'
 
 type DocumentApiResponse = {
   id: number
@@ -133,7 +133,7 @@ export async function deleteDocument(token: string, documentId: number) {
 
 export async function fetchDocumentFile(token: string, documentId: number) {
   const response = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/documents/${documentId}/file`,
+    `${getApiBaseUrl()}/documents/${documentId}/file`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
