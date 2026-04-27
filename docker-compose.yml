@@ -7,8 +7,19 @@ services:
       POSTGRES_DB: "${POSTGRES_DB}"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
   ollama:
     image: ollama/ollama
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_HOST: "0.0.0.0:11434"
+      NO_PROXY: "ollama,localhost,127.0.0.1,::1"
+      no_proxy: "ollama,localhost,127.0.0.1,::1"
     volumes:
       - ollama_data:/root/.ollama
     deploy:
@@ -22,16 +33,19 @@ services:
   ollama-init:
      image: ollama/ollama
      environment:
-       OLLAMA_HOST: "http://ollama:11434"
+       OLLAMA_HOST: "http://127.0.0.1:11434"
        OLLAMA_CHAT_MODEL: "llama3.1:8b"
        OLLAMA_EMBED_MODEL: "nomic-embed-text"
+       NO_PROXY: "ollama,localhost,127.0.0.1,::1"
+       no_proxy: "ollama,localhost,127.0.0.1,::1"
      depends_on:
        - ollama
+     network_mode: "service:ollama"
      entrypoint:
        - /bin/sh
        - -c
        - |
-         until ollama list >/dev/null 2>&1; do
+         until ollama list; do
            echo "Waiting for Ollama to become ready..."
            sleep 2
          done
@@ -45,6 +59,8 @@ services:
     # docker compose up -d backend frontend
   backend:
     build: ./backend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: "${DATABASE_URL}"
       JWT_SECRET: "${JWT_SECRET}"
@@ -57,13 +73,13 @@ services:
 
       # Chat/Embeddings: local Ollama
       LLM_PROVIDER: "ollama"
-      OLLAMA_BASE_URL: "http://ollama:11434"
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
       OLLAMA_CHAT_MODEL: "llama3.1:8b"
       OLLAMA_EMBED_MODEL: "nomic-embed-text"
       BACKEND_WORKERS: "${BACKEND_WORKERS:-2}"
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
       ollama-init:
          condition: service_completed_successfully
     volumes:
