@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import text as sql_text
 
@@ -57,12 +58,24 @@ async def request_validation_exception_handler(_request, exc: RequestValidationE
     message = str(first_error.get("msg", "Invalid input")).removeprefix("Value error, ")
     return JSONResponse(status_code=400, content={"detail": message})
 
+
+def ensure_vector_extension() -> None:
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(sql_text("SELECT pg_advisory_lock(482019641)"))
+        try:
+            conn.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
+        except IntegrityError as exc:
+            if "pg_extension_name_index" not in str(exc):
+                raise
+        finally:
+            conn.execute(sql_text("SELECT pg_advisory_unlock(482019641)"))
+
+
 @app.on_event("startup")
 def on_startup():
-    # enable pgvector extension
+    ensure_vector_extension()
     with engine.begin() as conn:
-        conn.execute(sql_text("SELECT pg_advisory_lock(482019641)"))
-        conn.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
+        conn.execute(sql_text("SELECT pg_advisory_xact_lock(482019641)"))
         Base.metadata.create_all(bind=conn)
         conn.execute(sql_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)"))
         conn.execute(sql_text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS title VARCHAR(255)"))
@@ -90,7 +103,6 @@ def on_startup():
         conn.execute(sql_text("ALTER TABLE documents ALTER COLUMN keywords SET DEFAULT '[]'::jsonb"))
         conn.execute(sql_text("UPDATE documents SET authors = '[]'::jsonb WHERE authors IS NULL"))
         conn.execute(sql_text("UPDATE documents SET keywords = '[]'::jsonb WHERE keywords IS NULL"))
-        conn.execute(sql_text("SELECT pg_advisory_unlock(482019641)"))
     Path(settings.storage_dir).mkdir(parents=True, exist_ok=True)
 
 
